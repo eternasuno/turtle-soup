@@ -84,6 +84,24 @@
   },
   "overrides": [
     {
+      "includes": ["**/*.tsx", "apps/web/src/lib/game.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveLinesPerFunction": "off",
+            "noExcessiveCognitiveComplexity": {
+              "level": "error",
+              "options": { "maxAllowedComplexity": 25 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.css"],
+      "linter": { "rules": { "style": { "noExcessiveLinesPerFile": "off" } } }
+    },
+    {
       "includes": ["test/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
       "linter": {
         "rules": {

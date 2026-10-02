@@ -19,6 +19,9 @@
     "check:fix": {
       "dependsOn": ["^check:fix"]
     },
+    "@turtle-soup/core#build": {
+      "outputs": []
+    },
     "test": {
       "outputs": []
     }

@@ -1,0 +1,19 @@
+{
+  "name": "@turtle-soup/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./types": "./src/types.ts",
+    "./game": "./src/game.ts",
+    "./jev": "./src/jev.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "5.0.0"
+  }
+}

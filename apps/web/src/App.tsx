@@ -1,17 +1,6 @@
 import './index.css';
-import { Router } from './router';
+import { Game } from './components/Game';
 
-const App = () => {
-  return (
-    <Router>
-      {(props) => (
-        <>
-          <h1 class="sr-only">Solid Surreal Starter</h1>
-          {props.children}
-        </>
-      )}
-    </Router>
-  );
-};
-
-export default App;
+export default function App() {
+  return <Game />;
+}

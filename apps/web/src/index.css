@@ -1,45 +1,24 @@
 @import "tailwindcss";
-@plugin "daisyui";
-
-:root {
-  --color-canvas: #faf8f5;
-  --color-canvas-subtle: #f4efe6;
-  --color-canvas-card: #ffffff;
-  --color-border: #e6dfd3;
-  --color-border-subtle: #ede6dc;
-  --color-ink: #141917;
-  --color-ink-muted: #5e6662;
-  --color-ink-subtle: #89938e;
-  --color-accent: #0f764a;
-  --color-accent-hover: #0c623d;
-  --color-accent-subtle: #eaf6ef;
-  --color-accent-border: #9dd8b7;
-  --color-accent-ring: rgba(15, 118, 74, 0.2);
-  --color-error: #b91c1c;
-  --color-error-subtle: #fef2f2;
-  --color-error-border: #fca5a5;
-  --color-error-ring: rgba(185, 28, 28, 0.2);
+@plugin "daisyui" {
+  themes: light --default;
+  logs: false;
 }
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  background-color: var(--color-canvas);
-  color: var(--color-ink);
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  --color-primary: #28664f;
+  --color-primary-content: #ffffff;
+  --color-base-100: #fffef9;
+  --color-base-200: #f5f5ef;
+  --color-base-300: #e0e5d8;
+  --color-base-content: #243b35;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  ::before,
-  ::after {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-    transition-duration: 0.01ms;
-    scroll-behavior: auto;
+@layer base {
+  html {
+    font-family:
+      Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", sans-serif;
+    font-synthesis: none;
+    background: var(--color-base-200);
   }
 }

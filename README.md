@@ -1,130 +1,86 @@
-# Solid Effect Starter
+# 海龟汤 MVP
 
-A self-hosted pnpm/Turborepo starter with a pure SolidJS 2 client application and a separate Effect HTTP API backed by Better Auth and embedded SurrealDB/SurrealKV. The UI uses Tailwind CSS v4 and DaisyUI v5.
+SolidJS **2.0.0-rc.6**、TypeScript、Vite、Tailwind CSS 和 DaisyUI 的纯静态推理游戏。保留 pnpm / Turborepo workspace，使用 signals；没有后端、数据库、SSR、登录或路由。
 
-## Prerequisites
+桌面采用左侧题目、右侧对话的单屏布局，题目和聊天记录在各自面板内滚动；移动端紧凑上下排列。解密成功自动弹窗显示完整谜底，可回顾本题或直接进入下一题。
 
-- Node.js **22.19 or newer**
-- pnpm **12.3.4**
+## 安装与运行
 
-Install dependencies and create the local configuration files:
+需要 Node.js 22.19+ 和 pnpm（根目录指定版本）。本仓库使用 `workspace:*` 依赖，不能直接使用 `npm install` 安装，请使用：
 
-```sh
+```bash
+corepack enable
 pnpm install
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-```
-
-Replace `BETTER_AUTH_SECRET` in `apps/api/.env` with a long random value, for example from `openssl rand -base64 32`.
-
-## Development
-
-```sh
 pnpm dev
 ```
 
-By default:
+打开 `http://localhost:3000`。
 
-- Web SPA: `http://localhost:3000`
-- Effect API: `http://localhost:3001`
-
-Both applications run as independent Turborepo tasks. Vite proxies `/api` to the Effect server during development and preview, so browser authentication remains same-origin without API CORS middleware.
-
-## Commands
-
-```sh
-pnpm dev        # run the web and API development servers
-pnpm build      # build both applications
-pnpm start      # run the built API server
-pnpm test       # run all Vitest suites
-pnpm check      # run Biome checks
-pnpm check:fix  # run Biome checks and apply fixes
+```bash
+pnpm check
+pnpm test
+pnpm build
+pnpm --filter web preview
 ```
 
-## Project guidance
+部署 `apps/web/dist` 到静态托管即可，不需要服务端进程。preview 仅用于本地验证。
 
-Maintainers should read [`AGENTS.md`](AGENTS.md) first, then read the relevant project skill for the task:
+## GitHub Pages
 
-- [`project-architecture`](.agents/skills/project-architecture/SKILL.md) — architecture, browser/API boundaries, session subscriptions, or deployment topology.
-- [`project-effect-api`](.agents/skills/project-effect-api/SKILL.md) — Better Auth, sessions, protected APIs, Effect services, or Layer composition.
-- [`project-database`](.agents/skills/project-database/SKILL.md) — SurrealDB/SurrealKV, schema migrations, or database deployment configuration.
-- [`project-testing`](.agents/skills/project-testing/SKILL.md) — tests, test doubles, Effect Layers, or in-memory database schema setup.
+`.github/workflows/deploy-pages.yml` 在推送到 `main` 或手动触发时执行检查、测试和构建，并将 `apps/web/dist` 部署到 GitHub Pages。
 
-## Architecture
+仓库 Settings → Pages → Build and deployment 的 Source 需选择 **GitHub Actions**。提交并推送代码后，在 Actions 中查看 `Deploy GitHub Pages` 的运行结果和部署地址。
+
+Vite 使用相对资源路径，支持仓库子路径及自定义域名。部署不需要 Jev API Key 或其他应用密钥；用户仍在浏览器中填写自己的设置。
+
+## Jev 设置
+
+点击「Jev 设置」，填写**完整 POST API 端点**和 API Key，再测试连接并保存。URL 不会自动追加路径。
+
+实现原生 Jev System One 协议：Bearer 认证，请求 `{ model: "jev-latest", state, questions }`，响应 `{ answers: { [id]: { type: "choice", choice, confidence? } } }`。端点必须支持此协议、模型别名和浏览器 CORS；不支持 Chat Completions 或不兼容的请求格式。
+
+- 询问：四选一 Choice，页面只显示固定标签。
+- 解密：一个请求包含全部关键事实的独立二选一 Choice，由程序计算整体结果，不透露缺失事实。
+- 测试连接会发送小型请求，可能产生费用。
+- 30 秒超时；失败可重试；放弃、换题或退出时取消请求并忽略过期结果。
+
+**API Key 仅保存在当前浏览器，并直接用于请求用户配置的 Jev API。**
+
+设置保存在 `localStorage` 的 `turtle-soup-jev-settings` 中。只填写你信任的端点；API Key 并非加密存储，共享设备可通过 DevTools 删除该存储项。游戏进度和对话仅在内存中，刷新重新开始。
+
+## 结构与题库
 
 ```text
-Browser
-  -> apps/web: static SolidJS SPA
-  -> credentialed HTTP requests
-  -> apps/api: Effect HttpServer
-       -> Better Auth
-       -> SurrealDB / SurrealKV
+apps/web/src/
+  components/       游戏界面与设置弹窗
+  data/puzzles.json 本地题库
+  lib/              游戏 signals 与 localStorage
+packages/core/src/
+  types.ts          类型契约
+  game.ts           随机抽题与结果规则
+  jev.ts            所有 Jev payload、请求与响应校验
 ```
 
-- `apps/web` contains browser-only routes, components, and the Better Auth client. Vite builds static assets with `ssr: false`; there are no server functions or server runtime modules.
-- `apps/api/src/routes` owns HTTP routing. Better Auth handles `/api/auth/*`.
-- `apps/api/src/runtime` holds the Effect layers for Better Auth and SurrealDB; `apps/api/src/app.ts` composes them into the HTTP `AppLive`, and `apps/api/src/server.ts` is the process entry that launches it. The server entry owns layer acquisition and graceful shutdown via `NodeRuntime`.
-- `apps/api/test` tests the database, the authentication protocol, and HTTP handlers against `mem://`.
+核心包无运行时依赖，不依赖 Solid 或 localStorage；浏览器消费 TypeScript 源码，由 Vite 打包。
 
-### Security boundaries
+题库：`apps/web/src/data/puzzles.json`。
 
-The backend derives identity only from the Better Auth session cookie on the incoming request. It never accepts a client-supplied user ID as identity. Database clients, embedded engines, secrets, and Better Auth server configuration stay in `apps/api` and cannot enter the browser bundle.
-
-Better Auth owns `/api/auth/*`; application endpoints should not reimplement its protocol. Protected endpoints should use `currentUserMiddleware` and derive identity from `CurrentUser` in `apps/api/src/middleware/session.ts`.
-
-### Embedded SurrealDB
-
-`apps/api/src/runtime/db/index.ts` connects to the configured database and selects its namespace and database. Runtime startup does not generate or apply schema.
-
-Better Auth's `auth migrate` command only supports its built-in Kysely adapter, so for the SurrealDB adapter the CLI can only emit DDL. Apply the schema with the package script:
-
-```sh
-pnpm --filter api db:migrate
+```ts
+interface Puzzle {
+  id: string;
+  title: string;
+  surface: string;
+  truth: string;
+  keyFacts: string[];
+}
 ```
 
-The script derives the DDL from the adapter and applies it to the configured database. Apply schema during deployment rather than at startup, so changes are applied once instead of racing across restarted instances. Tests initialize the adapter schema directly against `mem://`.
+添加新题：向数组添加对象，使用唯一 `id`，填写标题、谜面、完整真相及至少一个原子关键事实。事实必须由 `truth` 明确支持，避免仅是枝节；全部命中才算成功。题库测试会检查结构和 ID。
 
-## Environment variables
+## 静态应用限制
 
-Web variables belong in `apps/web/.env`:
+谜底和关键事实实际存在于前端 bundle 中，DevTools 用户可以查看，这是 MVP 的已知限制，不提供防作弊保证。谜底和输入也会发送给配置的 Jev 服务；模型判定可能出错，不应输入敏感信息。
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `WEB_PORT` | `3000` | Web development/preview port |
+## License
 
-API variables belong in `apps/api/.env`:
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `API_PORT` | `3001` | Effect HTTP server port |
-| `SURREAL_ENDPOINT` | `mem://` | Database endpoint; defaults to ephemeral `mem://`; use an absolute SurrealKV path or managed endpoint in production. |
-| `SURREAL_NAMESPACE` | `app` | SurrealDB namespace |
-| `SURREAL_DATABASE` | `app` | SurrealDB database |
-| `BETTER_AUTH_SECRET` | — | Better Auth signing secret |
-| `BETTER_AUTH_URL` | `http://localhost:3000` | Canonical public site origin used for auth URLs |
-
-Deploy the frontend and `/api` on the same public origin. In development and preview, Vite provides the `/api` proxy.
-
-## Routes
-
-### Web
-
-- `/register` — email/password registration
-- `/login` — email/password login
-- `/` — protected account page; redirects to `/login` when no session exists
-
-### API
-
-- `/api/auth/*` — Better Auth protocol
-
-## Production
-
-Build both applications:
-
-```sh
-pnpm build
-```
-
-`apps/web/dist` is a static SPA. Serve it with a real static host configured to fall back unknown page routes to `index.html`; it must not be used as a production web server. `apps/api/dist/server.js` is the Node backend, started by `pnpm start` (or `pnpm --filter api start`); production supervisors may instead run and scale the two processes separately.
-
-Use an absolute `SURREAL_ENDPOINT` or managed SurrealDB endpoint in production, route `/api` to the Effect server, and set `BETTER_AUTH_URL` to the public site origin.
+沿用根目录 MIT License。本版四道题未复制或改编 `wangyufanshuai/turtle-soup` 仓库内容（第一道根据需求示例改写，其余为原创），没有引入该仓库版权材料。后续如果复制或改编第三方 MIT 题库，必须随分发保留原作者版权声明和完整 MIT 许可，不能只注明仓库地址。

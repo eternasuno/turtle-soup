@@ -31,10 +31,6 @@ build/
 .solid/
 vite.config.ts.timestamp-*
 
-# Embedded SurrealDB (SurrealKV) data
-data/
-.surreal/
-
 # Test coverage
 coverage/
 .vitest/
@@ -59,9 +55,6 @@ Thumbs.db
 .npm
 .node_repl_history
 *.tgz
-
-# Crash dumps from embedded DB experiments
-/core
 
 # Devenv
 .devenv*
