@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+jspm_packages/
+.pnpm-store/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+.output/
+*.tsbuildinfo
+
+# Turborepo
+.turbo/
+
+# Vite / Solid
+.vite/
+.solid/
+vite.config.ts.timestamp-*
+
+# Embedded SurrealDB (SurrealKV) data
+data/
+.surreal/
+
+# Test coverage
+coverage/
+.vitest/
+*.lcov
+.nyc_output
+
+# Caches
+.cache/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+
+# Misc tooling caches
+.eslintcache
+.stylelintcache
+.npm
+.node_repl_history
+*.tgz
+
+# Crash dumps from embedded DB experiments
+/core
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv

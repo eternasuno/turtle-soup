@@ -1,0 +1,30 @@
+{
+  "name": "api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "tsc --noEmit && biome check",
+    "check:fix": "tsc --noEmit && biome check --fix",
+    "db:migrate": "tsx --env-file-if-exists=.env src/migrate.ts",
+    "dev": "tsx --env-file-if-exists=.env src/server.ts",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.0.0-rc.113",
+    "@surrealdb/better-auth": "0.1.0",
+    "@surrealdb/node": "3.0.3",
+    "better-auth": "1.7.3",
+    "effect": "4.0.0-rc.113",
+    "surrealdb": "2.0.8"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.0-rc.113",
+    "@types/node": "26.5.0",
+    "tsx": "4.23.1",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

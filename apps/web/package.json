@@ -1,0 +1,31 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "tsc --noEmit && biome check",
+    "check:fix": "tsc --noEmit && biome check --fix",
+    "dev": "vite",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@solidjs/router": "2.0.0-next.21",
+    "@solidjs/web": "2.0.0-rc.6",
+    "better-auth": "1.7.3",
+    "filesystem-routing": "0.3.0",
+    "solid-js": "2.0.0-rc.6",
+    "tslib": "2.8.1"
+  },
+  "devDependencies": {
+    "@solidjs/vite-plugin": "3.0.0-next.39",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.5.0",
+    "daisyui": "5.7.28",
+    "tailwindcss": "4.3.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}
