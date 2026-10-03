@@ -1,6 +1,6 @@
 # 海龟汤 MVP
 
-SolidJS **2.0.0-rc.6**、TypeScript、Vite、Tailwind CSS 和 DaisyUI 的纯静态推理游戏。保留 pnpm / Turborepo workspace，使用 signals；没有后端、数据库、SSR、登录或路由。
+SolidJS **2.0.0-rc.6**、TypeScript、Vite、Tailwind CSS 和 DaisyUI 的纯静态推理游戏。保留 pnpm / Turborepo workspace，核心状态使用 Effect，界面使用 Solid signals；没有后端、数据库、SSR、登录或路由。
 
 桌面采用左侧题目、右侧对话的单屏布局，题目和聊天记录在各自面板内滚动；移动端紧凑上下排列。解密成功自动弹窗显示完整谜底，可回顾本题或直接进入下一题。
 
@@ -54,14 +54,23 @@ Vite 使用相对资源路径，支持仓库子路径及自定义域名。部署
 apps/web/src/
   components/       游戏界面与设置弹窗
   data/puzzles.json 本地题库
-  lib/              游戏 signals 与 localStorage
+  lib/              Effect runtime / Solid 适配与 localStorage
 packages/core/src/
-  types.ts          类型契约
-  game.ts           随机抽题与结果规则
-  jev.ts            所有 Jev payload、请求与响应校验
+  types.ts          领域 Schema 与推导类型
+  game.ts           Effect 随机抽题、询问与解密用例
+  session.ts        会话状态、请求生命周期与游戏命令
+  settings.ts       设置读写用例与 SettingsStorage Service
+  solution.ts       关键事实评分规则
+  jev.ts            Jev 判定操作与 payload
+  jev-client.ts     配置绑定的 JevClient、HttpClient、超时与错误
+  jev-schema.ts     请求、响应及动态判定约束
 ```
 
-核心包无运行时依赖，不依赖 Solid 或 localStorage；浏览器消费 TypeScript 源码，由 Vite 打包。
+核心包使用 Effect 4 的 Schema、HttpClient、Service/Layer、Random 管理数据契约、规则与状态，不依赖 Solid、DOM 或 localStorage。`session.ts` 通过 SubscriptionRef 发布会话快照，用 scoped Fibers、请求身份与终结器处理重复提交、取消及过期结果。询问和解密用例仅返回固定的玩家可见内容与游戏状态，不返回隐藏事实。领域可选值（如前题 ID、置信度、会话错误）使用 Option；消息是按 role 区分的联合类型，仅 user 消息含 mode；模式与结果等领域分支使用 Match。
+
+`JevClientLayer(settings)` 依赖 HttpClient，`JevClientLive(settings)` 提供 FetchHttpClient；配置在 Layer 构建时校验、规范化一次，客户端调用为 `request(payload)`，请求不再传设置。web 为每份游戏配置保留一个 ManagedRuntime，保存新配置时取消在途请求、替换并释放旧 runtime，不重置会话；退出时清理订阅、会话 Scope 与 runtime。连接测试使用独立的临时 Layer。测试可注入 JevClient 或 HTTP transport Layer，Effect 测试使用 @effect/vitest、TestClock 和 Fiber。
+
+web 的 Solid signals 订阅核心快照用于渲染，并管理弹窗等 DOM 状态，不另写游戏状态机。`settings.ts` 负责 Schema JSON 编解码与设置用例；web 的 `SettingsStorageLive` 将 SettingsStorage Service 适配到 localStorage。读取允许空白草稿；保存必须通过核心校验、规范化并成功写入存储，才更新运行配置。@effect/atom-solid 4.0.0 只支持 Solid 1，因此暂不引入。共用依赖版本统一维护在 pnpm-workspace.yaml 的 catalog。浏览器消费 TypeScript 源码，由 Vite 打包。
 
 题库：`apps/web/src/data/puzzles.json`。
 

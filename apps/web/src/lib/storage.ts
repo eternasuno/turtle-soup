@@ -1,26 +1,25 @@
-import type { JevSettings } from '@turtle-soup/core/types';
+import {
+  SettingsReadError,
+  SettingsStorage,
+  SettingsWriteError,
+} from '@turtle-soup/core/settings';
+import { Effect, Layer, Option } from 'effect';
 
 const SETTINGS_KEY = 'turtle-soup-jev-settings';
-export function loadSettings(): JevSettings {
-  try {
-    const value: unknown = JSON.parse(
-      localStorage.getItem(SETTINGS_KEY) ?? 'null'
-    );
-    if (
-      typeof value === 'object' &&
-      value !== null &&
-      'apiUrl' in value &&
-      typeof value.apiUrl === 'string' &&
-      'apiKey' in value &&
-      typeof value.apiKey === 'string'
-    ) {
-      return { apiUrl: value.apiUrl, apiKey: value.apiKey };
-    }
-  } catch {
-    return { apiUrl: '', apiKey: '' };
-  }
-  return { apiUrl: '', apiKey: '' };
-}
-export function saveSettings(settings: JevSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
+
+export const SettingsStorageLive = Layer.succeed(SettingsStorage, {
+  read: Effect.try({
+    try: () => Option.fromNullishOr(localStorage.getItem(SETTINGS_KEY)),
+    catch: (cause) =>
+      new SettingsReadError({ message: '无法读取设置。', cause }),
+  }),
+  write: (value) =>
+    Effect.try({
+      try: () => localStorage.setItem(SETTINGS_KEY, value),
+      catch: (cause) =>
+        new SettingsWriteError({
+          message: '无法保存设置，请允许当前浏览器使用本地存储。',
+          cause,
+        }),
+    }),
+});

@@ -6,6 +6,8 @@
   "exports": {
     "./types": "./src/types.ts",
     "./game": "./src/game.ts",
+    "./session": "./src/session.ts",
+    "./settings": "./src/settings.ts",
     "./jev": "./src/jev.ts"
   },
   "scripts": {
@@ -14,6 +16,10 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "vitest": "5.0.0"
+    "@effect/vitest": "catalog:",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "effect": "catalog:"
   }
 }

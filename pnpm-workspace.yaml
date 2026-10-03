@@ -2,5 +2,11 @@ packages:
   - "apps/*"
   - "packages/*"
 
+catalog:
+  effect: 4.0.0
+  "@effect/vitest": 4.0.0
+  vitest: 5.0.0
+  "@types/node": 26.5.0
+
 allowBuilds:
   esbuild: true

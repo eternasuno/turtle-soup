@@ -1,14 +1,18 @@
 ---
 name: project-testing
-description: Verify game and Jev behavior through Vitest, browser-independent Solid 2 signals, fetch/storage mocks and targeted UI lifecycle checks.
+description: Verify core Effect sessions, settings and Jev contracts plus the Solid 2 runtime/DOM adapter through Vitest, injected services and targeted UI lifecycle checks.
 ---
 
 # Project Testing
 
-- Mirror source responsibilities under each workspace's `test` directory. Core tests own selection, atomic fact scoring, Jev payloads and external response validation; web tests own signals, storage and puzzle data.
-- Assert project behavior, not third-party internals. Use simple fetch / localStorage mocks, reset them after each test and avoid live external calls or real credentials in the test suite.
+- Mirror source responsibilities under each workspace's `test` directory. Core tests own Schema contracts, selection, scoring, player-visible use cases, `session.ts` SubscriptionRef/scoped Fiber lifetimes, `settings.ts` storage use cases, Jev payloads and transport validation. Web tests own the runtime/Solid adapter, localStorage-backed SettingsStorageLive, DOM lifetimes and puzzle data; do not move core rules into the adapter.
+- Use `@effect/vitest` and `it.effect` for Effect computations. Ordinary Vitest remains appropriate for Solid/DOM integration at the UI execution boundary; do not wrap every UI test only to change the test API.
+- Inject complete `JevClient` implementations with `request(payload)` through Layers rather than mocking core modules. Test `JevClientLayer(settings)` / `JevClientLive(settings)` with controlled HttpClient or Fetch layers: configuration is normalized once at Layer construction, not supplied per request. Inject SettingsStorage for core settings tests; keep localStorage mocks in web adapter tests and reset all stubs. No live external calls or real credentials.
+- For Effect timeouts and interruption, use TestClock, Fiber and Deferred to wait until the request has started. Assert the 30-second policy, observable fetch abort and typed failure versus interruption; do not test Effect's timer counts or internal scheduling.
 - Cover fixed question labels, all/partial/no fact matches, invalid or missing answers, HTTP/network errors, timeout, caller cancellation and settings validation.
-- Cover retries preserving input, no leaked keyFacts, duplicate submission, stale responses after reveal/reset, cleanup abort and complete next-game reset.
+- Cover retries preserving input, no leaked keyFacts, duplicate submission, stale responses after reveal/reset, scoped cleanup abort and complete next-game reset in core session tests. Exercise old A success/failure while new B is pending and verify B remains loading with no old messages/errors. In web tests submit twice without `flush()` to verify the adapter preserves the core's immediate lock; verify one ManagedRuntime is reused per configuration, replacement cancels/disposes the old runtime without resetting the session, and owner cleanup releases resources.
+- Distinguish loaded draft settings from valid request credentials; cover malformed JSON, invalid shapes, unavailable reads and failed writes. Verify core save validates and normalizes before writing through SettingsStorage, rejects invalid settings without a write, and returns normalized values only on success. Assert Option-valued domain absence/session errors, the role message union (host has no mode), and Match domain outcomes. Keep dynamic answer-key/choice, confidence bounds and fact-snapshot regression cases.
+- Verify request construction once per operation, then parameterize distinct response outcomes. Remove duplicate assertions only when they cover the same contract; core and web tests using different boundaries are not automatically redundant.
 - Node state tests resolve the client `solid-js` build via the web Vitest alias. Use `createRoot`, dispose its owner, and call `flush()` after writes or async completion before reading scheduled Solid 2 state. Do not confuse server no-op signals with browser behavior.
 - Keep Node tests for browser-independent behavior. Add DOM/browser tooling only for actual rendered interactions; native dialog opening, Escape/close, focus, repeated-game reopening and viewport overflow need rendered verification, not source-string assertions.
 - Never use `--passWithNoTests`. Run `pnpm check`, `pnpm test`, `pnpm build`; report separately which checks used mocked responses and whether a real Jev call or browser interaction was verified.

@@ -1,12 +1,10 @@
 import { Show } from '@solidjs/web';
-import {
-  JEV_ERROR_MESSAGE,
-  testConnection,
-  validateSettings,
-} from '@turtle-soup/core/jev';
+import { JevClientLive, testConnection } from '@turtle-soup/core/jev';
+import { saveSettings } from '@turtle-soup/core/settings';
 import type { JevSettings } from '@turtle-soup/core/types';
+import { Effect, Exit } from 'effect';
 import { createSignal, onCleanup } from 'solid-js';
-import { saveSettings } from '../lib/storage';
+import { SettingsStorageLive } from '../lib/storage';
 
 export function SettingsDialog(props: {
   settings: JevSettings;
@@ -25,8 +23,9 @@ export function SettingsDialog(props: {
     apiKey: apiKey?.value.trim() ?? '',
   });
   const invalidate = () => {
-    active?.abort();
+    const controller = active;
     active = undefined;
+    controller?.abort();
     setTesting(false);
     setFeedback('');
     setError('');
@@ -37,45 +36,59 @@ export function SettingsDialog(props: {
   });
   onCleanup(() => {
     disposed = true;
-    active?.abort();
+    const controller = active;
     active = undefined;
+    controller?.abort();
     dialog?.close();
   });
   const save = () => {
+    if (active || disposed) return;
+    const settings = draft();
     setError('');
-    try {
-      validateSettings(draft());
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '请检查设置。');
-      return;
-    }
-    try {
-      saveSettings(draft());
-    } catch {
-      setError('无法保存设置，请允许当前浏览器使用本地存储。');
-      return;
-    }
-    props.onSave(draft());
-    dialog?.close();
+    Effect.runSync(
+      saveSettings(settings).pipe(
+        Effect.provide(SettingsStorageLive),
+        Effect.match({
+          onFailure: (cause) => setError(cause.message),
+          onSuccess: (valid) => {
+            props.onSave(valid);
+            dialog?.close();
+          },
+        })
+      )
+    );
   };
   const test = async () => {
-    if (active) return;
+    if (active || disposed) return;
     const controller = new AbortController();
     active = controller;
     setTesting(true);
     setError('');
     setFeedback('');
-    try {
-      await testConnection(draft(), controller.signal);
-      if (active === controller) setFeedback('连接成功。');
-    } catch (cause) {
-      if (active === controller)
-        setError(cause instanceof Error ? cause.message : JEV_ERROR_MESSAGE);
-    } finally {
-      if (active === controller) {
-        active = undefined;
-        setTesting(false);
-      }
+    const exit = await Effect.runPromiseExit(
+      testConnection().pipe(
+        Effect.provide(JevClientLive(draft())),
+        Effect.match({
+          onFailure: (cause) => {
+            if (active === controller) setError(cause.message);
+          },
+          onSuccess: () => {
+            if (active === controller) setFeedback('连接成功。');
+          },
+        }),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (active === controller) {
+              active = undefined;
+              setTesting(false);
+            }
+          })
+        )
+      ),
+      { signal: controller.signal }
+    );
+    if (Exit.isFailure(exit) && !controller.signal.aborted) {
+      console.error(exit.cause);
     }
   };
   return (
@@ -84,6 +97,7 @@ export function SettingsDialog(props: {
       class="modal"
       aria-labelledby="settings-title"
       onClose={() => {
+        invalidate();
         if (!disposed) props.onClose();
       }}
     >
