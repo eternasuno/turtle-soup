@@ -4,11 +4,11 @@ import { FetchHttpClient } from 'effect/http';
 import { TestClock } from 'effect/testing';
 import {
   askQuestion,
+  DECISION_ERROR_MESSAGE,
+  DecisionClientLive,
   evaluateSolution,
-  JEV_ERROR_MESSAGE,
-  JevClientLive,
   testConnection,
-} from '../src/jev';
+} from '../src/decision';
 
 const puzzle = {
   id: 'soup',
@@ -17,7 +17,7 @@ const puzzle = {
   truth: '谜底',
   keyFacts: ['事实'],
 };
-const settings = { apiUrl: 'https://jev.example', apiKey: 'secret' };
+const settings = { apiUrl: 'https://decision.example', apiKey: 'secret' };
 const operations = [
   { name: 'question', operation: () => askQuestion(puzzle, '问题') },
   {
@@ -40,7 +40,7 @@ it.effect.each(operations)('aborts $name at 30 seconds', ({ operation }) =>
         });
       });
     };
-    const layer = JevClientLive(settings).pipe(
+    const layer = DecisionClientLive(settings).pipe(
       Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
     );
     const fiber = yield* Effect.forkChild(
@@ -52,8 +52,8 @@ it.effect.each(operations)('aborts $name at 30 seconds', ({ operation }) =>
     yield* TestClock.adjust(1);
     const error = yield* Fiber.join(fiber);
     expect(error).toMatchObject({
-      _tag: 'JevError',
-      message: JEV_ERROR_MESSAGE,
+      _tag: 'DecisionError',
+      message: DECISION_ERROR_MESSAGE,
     });
     expect(signal?.aborted).toBe(true);
   })
@@ -76,7 +76,7 @@ it.effect.each(operations)(
           );
         });
       };
-      const layer = JevClientLive(settings).pipe(
+      const layer = DecisionClientLive(settings).pipe(
         Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
       );
       const fiber = yield* Effect.forkChild(
@@ -112,13 +112,13 @@ it.effect.each(['status', 'body'] as const)(
       yield* Effect.gen(function* () {
         const error = yield* Effect.flip(askQuestion(puzzle, '问题'));
         expect(error).toMatchObject({
-          _tag: 'JevError',
-          message: JEV_ERROR_MESSAGE,
+          _tag: 'DecisionError',
+          message: DECISION_ERROR_MESSAGE,
         });
         expect(signal?.aborted).toBe(true);
       }).pipe(
         Effect.provide(
-          JevClientLive(settings).pipe(
+          DecisionClientLive(settings).pipe(
             Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
           )
         )
@@ -150,7 +150,7 @@ it.effect('keeps body decoding within the request scope and timeout', () =>
     const fiber = yield* Effect.forkChild(
       askQuestion(puzzle, '问题').pipe(
         Effect.provide(
-          JevClientLive(settings).pipe(
+          DecisionClientLive(settings).pipe(
             Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
           )
         ),
@@ -160,7 +160,7 @@ it.effect('keeps body decoding within the request scope and timeout', () =>
     yield* Deferred.await(reading);
     expect(signal?.aborted).toBe(false);
     yield* TestClock.adjust(30_000);
-    expect(yield* Fiber.join(fiber)).toMatchObject({ _tag: 'JevError' });
+    expect(yield* Fiber.join(fiber)).toMatchObject({ _tag: 'DecisionError' });
     expect(signal?.aborted).toBe(true);
   })
 );

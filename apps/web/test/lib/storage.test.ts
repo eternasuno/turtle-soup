@@ -8,7 +8,7 @@ import { Effect, Option } from 'effect';
 import { afterEach, vi } from 'vitest';
 import { SettingsStorageLive } from '../../src/lib/storage';
 
-const key = 'turtle-soup-jev-settings';
+const key = 'turtle-soup-decision-settings';
 afterEach(() => vi.unstubAllGlobals());
 
 for (const value of [null, '', 'stored value']) {
@@ -20,7 +20,8 @@ for (const value of [null, '', 'stored value']) {
       expect(yield* storage.read).toEqual(
         value === null ? Option.none() : Option.some(value)
       );
-      expect(getItem).toHaveBeenCalledExactlyOnceWith(key);
+      expect(getItem).toHaveBeenNthCalledWith(1, key);
+      expect(getItem).toHaveBeenCalledTimes(value === null ? 2 : 1);
     }).pipe(Effect.provide(SettingsStorageLive))
   );
 }
@@ -63,3 +64,15 @@ for (const operation of ['read', 'write'] as const) {
     }).pipe(Effect.provide(SettingsStorageLive))
   );
 }
+
+it.effect('loads legacy settings only when the decision key is absent', () =>
+  Effect.gen(function* () {
+    const legacy = '{"apiUrl":"https://example.com","apiKey":"key"}';
+    const getItem = vi.fn((name: string) => (name === key ? null : legacy));
+    vi.stubGlobal('localStorage', { getItem });
+    const storage = yield* SettingsStorage;
+
+    expect(yield* storage.read).toEqual(Option.some(legacy));
+    expect(getItem).toHaveBeenNthCalledWith(2, 'turtle-soup-jev-settings');
+  }).pipe(Effect.provide(SettingsStorageLive))
+);

@@ -1,6 +1,10 @@
 import { expect, it } from '@effect/vitest';
 import { Deferred, Effect, Exit, Fiber, Layer, Option, Scope } from 'effect';
-import { type ChoiceAnswer, JevClient, JevError } from '../src/jev';
+import {
+  type ChoiceAnswer,
+  DecisionClient,
+  DecisionError,
+} from '../src/decision';
 import { makeSession } from '../src/session';
 import type { Puzzle } from '../src/types';
 
@@ -14,8 +18,8 @@ const bank: Puzzle[] = ['first', 'second'].map((id) => ({
 const answer = (choice: string): Record<string, ChoiceAnswer> => ({
   answer: { type: 'choice', choice },
 });
-const client = (request: JevClient['Service']['request']) =>
-  Layer.succeed(JevClient, { request });
+const client = (request: DecisionClient['Service']['request']) =>
+  Layer.succeed(DecisionClient, { request });
 
 it.effect(
   'guards blank, duplicate and ended submissions with authoritative state',
@@ -61,7 +65,9 @@ it.effect('preserves retry input and resets every game field', () =>
       const pending = yield* session.submit.pipe(
         Effect.provide(
           client(() =>
-            Effect.fail(new JevError({ message: '网络失败', cause: 'network' }))
+            Effect.fail(
+              new DecisionError({ message: '网络失败', cause: 'network' })
+            )
           )
         )
       );
@@ -110,7 +116,7 @@ it.effect.each(['success', 'failure'] as const)(
       Effect.gen(function* () {
         const old = yield* Deferred.make<
           Record<string, ChoiceAnswer>,
-          JevError
+          DecisionError
         >();
         const next = yield* Deferred.make<Record<string, ChoiceAnswer>>();
         const session = yield* makeSession(bank);
@@ -129,7 +135,7 @@ it.effect.each(['success', 'failure'] as const)(
         else
           yield* Deferred.fail(
             old,
-            new JevError({ message: '旧错误', cause: 'old' })
+            new DecisionError({ message: '旧错误', cause: 'old' })
           );
         if (Option.isSome(first)) yield* Fiber.await(first.value);
         expect(yield* session.snapshot).toMatchObject({

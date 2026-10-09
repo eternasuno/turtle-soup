@@ -10,7 +10,8 @@ import { SettingsDialog } from './SettingsDialog';
 export function Game() {
   const game = useGame();
   const [showSettings, setShowSettings] = createSignal(
-    !game.settings().apiUrl.trim() || !game.settings().apiKey.trim()
+    game.settings().provider !== 'local' &&
+      (!game.settings().apiUrl.trim() || !game.settings().apiKey.trim())
   );
   const [resultDismissed, setResultDismissed] = createSignal(false);
   const nextPuzzle = () => {
@@ -37,7 +38,7 @@ export function Game() {
           type="button"
           onClick={() => setShowSettings(true)}
         >
-          Jev 设置
+          Decision 设置
         </button>
       </header>
       <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,2fr)] gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:grid-rows-1 md:gap-5">
@@ -104,7 +105,7 @@ export function Game() {
               </button>
             </Show>
             <span class="hidden text-xs text-base-content/60 md:inline">
-              {puzzles.length} 道谜题 · Jev 担任主持人
+              {puzzles.length} 道谜题 · Decision 担任主持人
             </span>
           </div>
         </section>
@@ -114,7 +115,7 @@ export function Game() {
         >
           <div class="flex shrink-0 items-center justify-between gap-3 border-b border-base-300 px-4 py-3 md:px-5 md:py-4">
             <h2 class="text-sm font-bold">推理对话</h2>
-            <span class="badge badge-ghost badge-sm">Jev 主持人</span>
+            <span class="badge badge-ghost badge-sm">Decision 主持人</span>
           </div>
           <Conversation messages={game.messages()} loading={game.loading()} />
           <Composer game={game} />

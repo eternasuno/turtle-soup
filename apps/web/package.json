@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@turtle-soup/local-model": "workspace:*",
     "@solidjs/web": "2.0.0-rc.6",
     "@turtle-soup/core": "workspace:*",
     "effect": "catalog:",

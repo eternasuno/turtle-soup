@@ -9,27 +9,27 @@ export const ChoiceQuestion = Schema.Struct({
   ),
 });
 export type ChoiceQuestion = typeof ChoiceQuestion.Type;
-export const JevRequest = Schema.Struct({
+export const DecisionRequest = Schema.Struct({
   model: Schema.Literal('jev-latest'),
   state: NonBlankString,
   questions: Schema.Record(NonBlankString, ChoiceQuestion).check(
     Schema.isMinProperties(1)
   ),
 });
-export type JevRequest = typeof JevRequest.Type;
+export type DecisionRequest = typeof DecisionRequest.Type;
 export const ChoiceAnswer = Schema.Struct({
   type: Schema.Literal('choice'),
   choice: NonBlankString,
   confidence: Schema.optionalKey(Confidence),
 });
 export type ChoiceAnswer = typeof ChoiceAnswer.Type;
-export const JevResponse = Schema.Struct({
+export const DecisionResponse = Schema.Struct({
   answers: Schema.Record(NonBlankString, ChoiceAnswer),
 });
-export type JevResponse = typeof JevResponse.Type;
+export type DecisionResponse = typeof DecisionResponse.Type;
 
-export function responseFor(questions: JevRequest['questions']) {
-  return JevResponse.check(
+export function responseFor(questions: DecisionRequest['questions']) {
+  return DecisionResponse.check(
     Schema.makeFilter(
       ({ answers }) =>
         Rec.size(answers) === Rec.size(questions) &&

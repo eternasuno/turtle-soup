@@ -1,7 +1,7 @@
 import { expect, it } from '@effect/vitest';
 import { Effect, Layer, Option } from 'effect';
 import { vi } from 'vitest';
-import { SettingsError } from '../src/jev-client';
+import { SettingsError } from '../src/decision-client';
 import {
   loadInitialSettings,
   loadSettings,
@@ -83,11 +83,11 @@ it.effect(
     const write = vi.fn(() => Effect.void);
     return Effect.gen(function* () {
       const saved = yield* saveSettings({
-        apiUrl: ' https://example.com/jev ',
+        apiUrl: ' https://example.com/decision ',
         apiKey: ' test-key ',
       });
       expect(saved).toEqual({
-        apiUrl: 'https://example.com/jev',
+        apiUrl: 'https://example.com/decision',
         apiKey: 'test-key',
       });
       expect(write).toHaveBeenCalledExactlyOnceWith(JSON.stringify(saved));
@@ -104,10 +104,10 @@ it.effect(
 
 for (const settings of [
   emptySettings,
-  { apiUrl: 'https://example.com/jev', apiKey: ' ' },
+  { apiUrl: 'https://example.com/decision', apiKey: ' ' },
   { apiUrl: 'unfinished URL', apiKey: 'key' },
-  { apiUrl: 'ftp://example.com/jev', apiKey: 'key' },
-  { apiUrl: 'https://user@example.com/jev', apiKey: 'key' },
+  { apiUrl: 'ftp://example.com/decision', apiKey: 'key' },
+  { apiUrl: 'https://user@example.com/decision', apiKey: 'key' },
 ]) {
   it.effect(
     `rejects invalid settings without writing: ${JSON.stringify(settings)}`,
@@ -138,7 +138,7 @@ it.effect('preserves storage write failures', () => {
   return Effect.gen(function* () {
     expect(
       yield* saveSettings({
-        apiUrl: 'https://example.com/jev',
+        apiUrl: 'https://example.com/decision',
         apiKey: 'test-key',
       }).pipe(Effect.flip)
     ).toBe(failure);
@@ -151,3 +151,21 @@ it.effect('preserves storage write failures', () => {
     )
   );
 });
+
+it.effect('saves local settings without API credentials', () =>
+  Effect.gen(function* () {
+    const settings = { provider: 'local' as const, apiUrl: '', apiKey: '' };
+    const write = vi.fn((_value: string) => Effect.void);
+    const valid = yield* saveSettings(settings).pipe(
+      Effect.provide(
+        Layer.succeed(SettingsStorage, {
+          read: Effect.succeed(Option.none()),
+          write,
+        })
+      )
+    );
+
+    expect(valid).toEqual(settings);
+    expect(JSON.parse(write.mock.calls[0]![0]!)).toEqual(settings);
+  })
+);

@@ -5,11 +5,15 @@ import {
 } from '@turtle-soup/core/settings';
 import { Effect, Layer, Option } from 'effect';
 
-const SETTINGS_KEY = 'turtle-soup-jev-settings';
+const SETTINGS_KEY = 'turtle-soup-decision-settings';
 
 export const SettingsStorageLive = Layer.succeed(SettingsStorage, {
   read: Effect.try({
-    try: () => Option.fromNullishOr(localStorage.getItem(SETTINGS_KEY)),
+    try: () =>
+      Option.fromNullishOr(
+        localStorage.getItem(SETTINGS_KEY) ??
+          localStorage.getItem('turtle-soup-jev-settings')
+      ),
     catch: (cause) =>
       new SettingsReadError({ message: '无法读取设置。', cause }),
   }),

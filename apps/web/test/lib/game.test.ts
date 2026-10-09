@@ -1,13 +1,17 @@
-import { type ChoiceAnswer, JevClient, JevError } from '@turtle-soup/core/jev';
+import {
+  type ChoiceAnswer,
+  DecisionClient,
+  DecisionError,
+} from '@turtle-soup/core/decision';
 import { Effect, Layer, Option } from 'effect';
 import { createRoot, flush } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useGame } from '../../src/lib/game';
 
-const requestClient = vi.fn<JevClient['Service']['request']>();
+const requestClient = vi.fn<DecisionClient['Service']['request']>();
 const clientLayer = Layer.succeed(
-  JevClient,
-  JevClient.of({ request: requestClient })
+  DecisionClient,
+  DecisionClient.of({ request: requestClient })
 );
 const answer = (choice: string): Record<string, ChoiceAnswer> => ({
   answer: { type: 'choice', choice },
@@ -58,7 +62,7 @@ function pendingQuestion() {
       return promise;
     },
     catch: (cause) =>
-      new JevError({
+      new DecisionError({
         message: cause instanceof Error ? cause.message : '请求失败',
         cause,
       }),
@@ -138,7 +142,7 @@ it('solves and completely resets the next game', async () => {
 it('preserves input and game on failure and supports retry', async () => {
   requestClient
     .mockReturnValueOnce(
-      Effect.fail(new JevError({ message: '请求失败', cause: 'network' }))
+      Effect.fail(new DecisionError({ message: '请求失败', cause: 'network' }))
     )
     .mockReturnValue(Effect.succeed(answer('yes')));
   enter();

@@ -1,6 +1,6 @@
 import { Context, Effect, Option, Schema } from 'effect';
-import { normalizeSettings } from './jev-client';
-import { JevSettings } from './types';
+import { normalizeSettings } from './decision-client';
+import { DecisionSettings } from './types';
 
 export class SettingsReadError extends Schema.TaggedError<SettingsReadError>()(
   'SettingsReadError',
@@ -20,8 +20,8 @@ export class SettingsStorage extends Context.Service<
   }
 >()('@turtle-soup/core/SettingsStorage') {}
 
-const emptySettings: JevSettings = { apiUrl: '', apiKey: '' };
-const settingsJson = Schema.fromJsonString(JevSettings);
+const emptySettings: DecisionSettings = { apiUrl: '', apiKey: '' };
+const settingsJson = Schema.fromJsonString(DecisionSettings);
 
 export const loadSettings = Effect.fnUntraced(function* () {
   const value = yield* (yield* SettingsStorage).read;
@@ -35,7 +35,7 @@ export const loadSettings = Effect.fnUntraced(function* () {
           (cause) => new SettingsReadError({ message: '无法读取设置。', cause })
         ),
         Effect.flatMap((parsed) =>
-          Schema.decodeUnknownEffect(JevSettings)(parsed).pipe(
+          Schema.decodeUnknownEffect(DecisionSettings)(parsed).pipe(
             Effect.catch(() => Effect.succeed(emptySettings))
           )
         )
@@ -49,7 +49,7 @@ export const loadInitialSettings = () =>
   );
 
 export const saveSettings = Effect.fnUntraced(function* (
-  settings: JevSettings
+  settings: DecisionSettings
 ) {
   const valid = yield* normalizeSettings(settings);
   const value = yield* Schema.encodeEffect(settingsJson)(valid).pipe(

@@ -8,5 +8,10 @@ catalog:
   vitest: 5.0.0
   "@types/node": 26.5.0
 
+overrides:
+  "@huggingface/transformers@4.3.1>onnxruntime-web": "1.30.0"
+
 allowBuilds:
   esbuild: true
+  onnxruntime-node: false
+  protobufjs: false

@@ -1,13 +1,13 @@
 import { expect, it } from '@effect/vitest';
 import { Effect, Layer, Option, Random } from 'effect';
+import type { ChoiceAnswer } from '../src/decision';
+import { DecisionClient, DecisionError } from '../src/decision';
 import {
   selectPuzzle,
   solutionStatus,
   submitQuestion,
   submitSolution,
 } from '../src/game';
-import type { ChoiceAnswer } from '../src/jev';
-import { JevClient, JevError } from '../src/jev';
 import type { Puzzle } from '../src/types';
 
 const puzzles: Puzzle[] = ['first', 'second', 'third'].map((id) => ({
@@ -18,7 +18,7 @@ const puzzles: Puzzle[] = ['first', 'second', 'third'].map((id) => ({
   keyFacts: ['隐藏事实'],
 }));
 const fake = (answers: Record<string, ChoiceAnswer>) =>
-  Layer.succeed(JevClient, {
+  Layer.succeed(DecisionClient, {
     request: () => Effect.succeed(answers),
   });
 
@@ -107,8 +107,8 @@ it.effect.each([
 
 it.effect('passes puzzle and input to the service and preserves failure', () =>
   Effect.gen(function* () {
-    const failure = new JevError({ message: 'failed', cause: 'network' });
-    const layer = Layer.succeed(JevClient, {
+    const failure = new DecisionError({ message: 'failed', cause: 'network' });
+    const layer = Layer.succeed(DecisionClient, {
       request: (payload) => {
         expect(payload.state).toContain('隐藏谜底');
         expect(payload.state).toContain('PLAYER QUESTION:\n玩家输入');

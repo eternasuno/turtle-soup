@@ -5,16 +5,23 @@ import {
   HttpClientRequest,
   HttpClientResponse,
 } from 'effect/http';
-import { type ChoiceAnswer, JevRequest, responseFor } from './jev-schema';
-import { type JevSettings, RequestSettings } from './types';
+import {
+  type ChoiceAnswer,
+  DecisionRequest,
+  responseFor,
+} from './decision-schema';
+import { DecisionSettings, RequestSettings } from './types';
 
-export const JEV_ERROR_MESSAGE =
-  'Jev 请求失败，请检查 API URL、API Key 或网络状态。';
+export const DECISION_ERROR_MESSAGE =
+  'Decision 请求失败，请检查 API URL、API Key 或网络状态。';
 
-export class JevError extends Schema.TaggedError<JevError>()('JevError', {
-  message: Schema.String,
-  cause: Schema.Unknown,
-}) {}
+export class DecisionError extends Schema.TaggedError<DecisionError>()(
+  'DecisionError',
+  {
+    message: Schema.String,
+    cause: Schema.Unknown,
+  }
+) {}
 export class SettingsError extends Schema.TaggedError<SettingsError>()(
   'SettingsError',
   {
@@ -23,9 +30,18 @@ export class SettingsError extends Schema.TaggedError<SettingsError>()(
 ) {}
 
 export const normalizeSettings = (
-  settings: JevSettings
-): Effect.Effect<RequestSettings, SettingsError> =>
-  Schema.decodeUnknownEffect(RequestSettings)(settings).pipe(
+  settings: DecisionSettings
+): Effect.Effect<DecisionSettings, SettingsError> =>
+  (settings.provider === 'local'
+    ? Schema.decodeUnknownEffect(DecisionSettings)(settings)
+    : Schema.decodeUnknownEffect(RequestSettings)(settings).pipe(
+        Effect.map((valid) =>
+          settings.provider === 'api'
+            ? { ...valid, provider: 'api' as const }
+            : valid
+        )
+      )
+  ).pipe(
     Effect.mapError(() => {
       const message = Match.value(settings).pipe(
         Match.when(
@@ -43,33 +59,33 @@ export const normalizeSettings = (
   );
 
 export const validateSettings = (
-  settings: JevSettings
+  settings: DecisionSettings
 ): Effect.Effect<void, SettingsError> =>
   normalizeSettings(settings).pipe(Effect.asVoid);
 
-export class JevClient extends Context.Service<
-  JevClient,
+export class DecisionClient extends Context.Service<
+  DecisionClient,
   {
     request(
-      payload: JevRequest
-    ): Effect.Effect<Record<string, ChoiceAnswer>, JevError>;
+      payload: DecisionRequest
+    ): Effect.Effect<Record<string, ChoiceAnswer>, DecisionError>;
   }
->()('@turtle-soup/core/JevClient') {}
+>()('@turtle-soup/core/DecisionClient') {}
 
-export const JevClientLayer = (settings: JevSettings) =>
+export const DecisionClientLayer = (settings: DecisionSettings) =>
   Layer.effect(
-    JevClient,
+    DecisionClient,
     Effect.gen(function* () {
       const valid = yield* normalizeSettings(settings);
       const client = (yield* HttpClient.HttpClient).pipe(
         HttpClient.filterStatusOk,
         HttpClient.withScope
       );
-      const request = Effect.fnUntraced(function* (payload: JevRequest) {
+      const request = Effect.fnUntraced(function* (payload: DecisionRequest) {
         return yield* Effect.gen(function* () {
           const request = yield* HttpClientRequest.post(valid.apiUrl).pipe(
             HttpClientRequest.bearerToken(valid.apiKey),
-            HttpClientRequest.schemaBodyJson(JevRequest)(payload)
+            HttpClientRequest.schemaBodyJson(DecisionRequest)(payload)
           );
           const response = yield* client.execute(request);
           const decoded = yield* HttpClientResponse.schemaBodyJson(
@@ -84,13 +100,14 @@ export const JevClientLayer = (settings: JevSettings) =>
           }),
           Effect.timeout(30_000),
           Effect.mapError(
-            (cause) => new JevError({ message: JEV_ERROR_MESSAGE, cause })
+            (cause) =>
+              new DecisionError({ message: DECISION_ERROR_MESSAGE, cause })
           )
         );
       });
-      return JevClient.of({ request });
+      return DecisionClient.of({ request });
     })
   );
 
-export const JevClientLive = (settings: JevSettings) =>
-  JevClientLayer(settings).pipe(Layer.provide(FetchHttpClient.layer));
+export const DecisionClientLive = (settings: DecisionSettings) =>
+  DecisionClientLayer(settings).pipe(Layer.provide(FetchHttpClient.layer));

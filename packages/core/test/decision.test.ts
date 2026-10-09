@@ -3,12 +3,12 @@ import { Effect, Layer, Option, Schema } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import {
   askQuestion,
+  DECISION_ERROR_MESSAGE,
+  DecisionClientLive,
+  DecisionError,
   evaluateSolution,
-  JEV_ERROR_MESSAGE,
-  JevClientLive,
-  JevError,
   testConnection,
-} from '../src/jev';
+} from '../src/decision';
 import type { Puzzle } from '../src/types';
 
 const puzzle: Puzzle = {
@@ -19,11 +19,11 @@ const puzzle: Puzzle = {
   keyFacts: ['他认出了味道', '他发现自己被骗了'],
 };
 const settings = {
-  apiUrl: ' https://jev.example/evaluate ',
+  apiUrl: ' https://decision.example/evaluate ',
   apiKey: ' secret ',
 };
 const transport = (fetch: typeof globalThis.fetch) =>
-  JevClientLive(settings).pipe(
+  DecisionClientLive(settings).pipe(
     Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
   );
 const response = (answers: unknown) =>
@@ -45,7 +45,7 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const layer = transport(async (url, init) => {
-        expect(String(url)).toBe('https://jev.example/evaluate');
+        expect(String(url)).toBe('https://decision.example/evaluate');
         expect(init).toMatchObject({
           method: 'POST',
           credentials: 'omit',
@@ -202,8 +202,8 @@ it.effect.each<unknown>([
       Effect.provide(response(answers)),
       Effect.flip
     );
-    expect(error).toBeInstanceOf(JevError);
-    expect(error.message).toBe(JEV_ERROR_MESSAGE);
+    expect(error).toBeInstanceOf(DecisionError);
+    expect(error.message).toBe(DECISION_ERROR_MESSAGE);
   })
 );
 
@@ -232,7 +232,7 @@ it.effect.each([
       Effect.provide(response(answers)),
       Effect.flip
     );
-    expect(error.message).toBe(JEV_ERROR_MESSAGE);
+    expect(error.message).toBe(DECISION_ERROR_MESSAGE);
   })
 );
 
@@ -249,8 +249,8 @@ it.effect.each([
       Effect.flip
     );
     expect(error).toMatchObject({
-      _tag: 'JevError',
-      message: JEV_ERROR_MESSAGE,
+      _tag: 'DecisionError',
+      message: DECISION_ERROR_MESSAGE,
     });
     expect(error).toHaveProperty('cause');
   })
@@ -289,6 +289,8 @@ it.effect.each(['ready', 'unavailable'] as const)(
       );
       if (choice === 'ready') yield* operation;
       else
-        expect((yield* Effect.flip(operation)).message).toBe(JEV_ERROR_MESSAGE);
+        expect((yield* Effect.flip(operation)).message).toBe(
+          DECISION_ERROR_MESSAGE
+        );
     })
 );

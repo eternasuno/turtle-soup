@@ -1,12 +1,11 @@
 import {
-  JevClient,
-  JevClientLive,
-  JevError,
+  DecisionClient,
+  DecisionError,
   type SettingsError,
-} from '@turtle-soup/core/jev';
+} from '@turtle-soup/core/decision';
 import { makeSession } from '@turtle-soup/core/session';
 import { loadInitialSettings } from '@turtle-soup/core/settings';
-import { type JevSettings, Puzzle } from '@turtle-soup/core/types';
+import { type DecisionSettings, Puzzle } from '@turtle-soup/core/types';
 import {
   Cause,
   Effect,
@@ -21,15 +20,16 @@ import {
 } from 'effect';
 import { createSignal, onCleanup } from 'solid-js';
 import puzzles from '../data/puzzles.json';
+import { configuredDecision } from './decision';
 import { SettingsStorageLive } from './storage';
 
 const puzzleBank = Schema.decodeUnknownSync(Schema.Array(Puzzle))(puzzles);
-type ClientLayer = Layer.Layer<JevClient, SettingsError>;
+type ClientLayer = Layer.Layer<DecisionClient, SettingsError | DecisionError>;
 
 export function useGame(
   configuredClient:
     | ClientLayer
-    | ((settings: JevSettings) => ClientLayer) = JevClientLive
+    | ((settings: DecisionSettings) => ClientLayer) = configuredDecision
 ) {
   const scope = Effect.runSync(Scope.make());
   const session = Effect.runSync(
@@ -41,18 +41,18 @@ export function useGame(
       loadInitialSettings().pipe(Effect.provide(SettingsStorageLive))
     )
   );
-  const makeRuntime = (settings: JevSettings) => {
+  const makeRuntime = (settings: DecisionSettings) => {
     const layer =
       typeof configuredClient === 'function'
         ? configuredClient(settings)
         : configuredClient;
     return ManagedRuntime.make(
       layer.pipe(
-        Layer.catchTag('SettingsError', (error) =>
-          Layer.succeed(JevClient, {
+        Layer.catch((error) =>
+          Layer.succeed(DecisionClient, {
             request: () =>
               Effect.fail(
-                new JevError({ message: error.message, cause: error })
+                new DecisionError({ message: error.message, cause: error })
               ),
           })
         )
@@ -110,7 +110,7 @@ export function useGame(
       console.error(exit.cause);
     if (!disposed) setState(Effect.runSync(session.snapshot));
   };
-  const setSettings = (settings: JevSettings) => {
+  const setSettings = (settings: DecisionSettings) => {
     if (disposed) return;
     acquisition = Option.none();
     execute(session.cancel);

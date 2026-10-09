@@ -8,7 +8,7 @@
     "./game": "./src/game.ts",
     "./session": "./src/session.ts",
     "./settings": "./src/settings.ts",
-    "./jev": "./src/jev.ts"
+    "./decision": "./src/decision.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

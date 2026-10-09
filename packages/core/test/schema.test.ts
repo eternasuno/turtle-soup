@@ -3,15 +3,15 @@ import { Effect, Layer, Option, Schema } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import {
   askQuestion,
-  JevClient,
-  JevClientLive,
+  DecisionClient,
+  DecisionClientLive,
   normalizeSettings,
   validateSettings,
-} from '../src/jev';
+} from '../src/decision';
 import {
   Confidence,
+  DecisionSettings,
   FactMatch,
-  JevSettings,
   Message,
   Puzzle,
 } from '../src/types';
@@ -24,19 +24,19 @@ const puzzle = {
   keyFacts: ['fact'],
 };
 const settings = {
-  apiUrl: ' https://jev.example/evaluate ',
+  apiUrl: ' https://decision.example/evaluate ',
   apiKey: ' secret ',
 };
 const transport = (fetch: typeof globalThis.fetch, config = settings) =>
-  JevClientLive(config).pipe(
+  DecisionClientLive(config).pipe(
     Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
   );
 
 it.effect.each([
   { apiUrl: ' ', apiKey: 'key' },
-  { apiUrl: 'https://jev.example', apiKey: ' ' },
+  { apiUrl: 'https://decision.example', apiKey: ' ' },
   { apiUrl: 'not a url', apiKey: 'key' },
-  { apiUrl: 'ftp://jev.example', apiKey: 'key' },
+  { apiUrl: 'ftp://decision.example', apiKey: 'key' },
   { apiUrl: 'https://user:password@jev.example', apiKey: 'key' },
   { apiUrl: 'https://user@jev.example', apiKey: 'key' },
   { apiUrl: 'https://:password@jev.example', apiKey: 'key' },
@@ -63,7 +63,7 @@ it.effect(
   () =>
     Effect.gen(function* () {
       expect(
-        yield* Schema.decodeUnknownEffect(JevSettings)({
+        yield* Schema.decodeUnknownEffect(DecisionSettings)({
           apiUrl: '',
           apiKey: '',
         })
@@ -109,7 +109,7 @@ it.effect('fails layer initialization before running its consumer', () =>
     const error = yield* Effect.sync(() => {
       consumed = true;
     }).pipe(
-      Effect.provide(JevClientLive({ apiUrl: '', apiKey: '' })),
+      Effect.provide(DecisionClientLive({ apiUrl: '', apiKey: '' })),
       Effect.flip
     );
     expect(error).toMatchObject({
@@ -137,7 +137,7 @@ it.effect('captures normalized configuration once when the layer builds', () =>
       );
     }, config);
     yield* Effect.gen(function* () {
-      yield* JevClient;
+      yield* DecisionClient;
       config.apiUrl = 'invalid';
       config.apiKey = '';
       yield* askQuestion(puzzle, 'first');

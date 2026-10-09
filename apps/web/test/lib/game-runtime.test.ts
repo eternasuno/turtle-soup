@@ -1,10 +1,14 @@
-import { type ChoiceAnswer, JevClient, JevError } from '@turtle-soup/core/jev';
+import {
+  type ChoiceAnswer,
+  DecisionClient,
+  DecisionError,
+} from '@turtle-soup/core/decision';
 import { Effect, Layer, Option } from 'effect';
 import { createRoot, flush } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useGame } from '../../src/lib/game';
 
-const requestClient = vi.fn<JevClient['Service']['request']>();
+const requestClient = vi.fn<DecisionClient['Service']['request']>();
 const answer = (choice: string): Record<string, ChoiceAnswer> => ({
   answer: { type: 'choice', choice },
 });
@@ -32,7 +36,7 @@ function pendingQuestion() {
       return promise;
     },
     catch: (cause) =>
-      new JevError({
+      new DecisionError({
         message: cause instanceof Error ? cause.message : '请求失败',
         cause,
       }),
@@ -50,12 +54,12 @@ it('reuses the configured runtime and replaces it without resetting the session'
   const configurations: string[] = [];
   const configured = (settings: { apiUrl: string; apiKey: string }) =>
     Layer.effect(
-      JevClient,
+      DecisionClient,
       Effect.acquireRelease(
         Effect.sync(() => {
           acquired += 1;
           configurations.push(settings.apiKey);
-          return JevClient.of({ request: requestClient });
+          return DecisionClient.of({ request: requestClient });
         }),
         () =>
           Effect.sync(() => {
@@ -80,7 +84,7 @@ it('reuses the configured runtime and replaces it without resetting the session'
   requestClient.mockReturnValueOnce(old.effect);
   enter('保留输入');
   const pending = game.submit();
-  game.setSettings({ apiUrl: 'https://jev.example', apiKey: 'new-key' });
+  game.setSettings({ apiUrl: 'https://decision.example', apiKey: 'new-key' });
   flush();
   expect(old.signal().aborted).toBe(true);
   expect(game.puzzle()).toBe(puzzle);
@@ -98,15 +102,15 @@ it('reuses the configured runtime and replaces it without resetting the session'
 });
 
 function pendingClientLayer() {
-  let resolve!: (client: JevClient['Service']) => void;
-  const promise = new Promise<JevClient['Service']>((done) => {
+  let resolve!: (client: DecisionClient['Service']) => void;
+  const promise = new Promise<DecisionClient['Service']>((done) => {
     resolve = done;
   });
   const acquire = vi.fn(() => promise);
   return {
-    layer: Layer.effect(JevClient, Effect.promise(acquire)),
+    layer: Layer.effect(DecisionClient, Effect.promise(acquire)),
     acquire,
-    resolve: () => resolve(JevClient.of({ request: requestClient })),
+    resolve: () => resolve(DecisionClient.of({ request: requestClient })),
   };
 }
 
@@ -173,7 +177,7 @@ it('never submits with an old client replaced during asynchronous acquisition', 
   requestClient.mockReturnValue(Effect.succeed(answer('yes')));
   enter();
   const first = game.submit();
-  game.setSettings({ apiUrl: 'https://jev.example', apiKey: 'new-key' });
+  game.setSettings({ apiUrl: 'https://decision.example', apiKey: 'new-key' });
   const second = game.submit();
   expect(current.acquire).toHaveBeenCalledTimes(1);
   old.resolve();

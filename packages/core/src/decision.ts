@@ -6,27 +6,31 @@ import {
   Record as Rec,
   Schema,
 } from 'effect';
-import { JEV_ERROR_MESSAGE, JevClient, JevError } from './jev-client';
-import type { ChoiceQuestion } from './jev-schema';
+import {
+  DECISION_ERROR_MESSAGE,
+  DecisionClient,
+  DecisionError,
+} from './decision-client';
+import type { ChoiceQuestion } from './decision-schema';
 import { solutionStatus } from './solution';
 import { type Puzzle, QuestionResult, type SolutionResult } from './types';
 
 export {
-  JEV_ERROR_MESSAGE,
-  JevClient,
-  JevClientLayer,
-  JevClientLive,
-  JevError,
+  DECISION_ERROR_MESSAGE,
+  DecisionClient,
+  DecisionClientLayer,
+  DecisionClientLive,
+  DecisionError,
   normalizeSettings,
   SettingsError,
   validateSettings,
-} from './jev-client';
+} from './decision-client';
 export {
   ChoiceAnswer,
   ChoiceQuestion,
-  JevRequest,
-  JevResponse,
-} from './jev-schema';
+  DecisionRequest,
+  DecisionResponse,
+} from './decision-schema';
 
 export class InvalidPuzzleError extends Schema.TaggedError<InvalidPuzzleError>()(
   'InvalidPuzzleError',
@@ -38,8 +42,8 @@ export class InvalidPuzzleError extends Schema.TaggedError<InvalidPuzzleError>()
 export const askQuestion = Effect.fnUntraced(function* (
   puzzle: Puzzle,
   question: string
-): Effect.fn.Return<QuestionResult, JevError, JevClient> {
-  const answers = yield* (yield* JevClient).request({
+): Effect.fn.Return<QuestionResult, DecisionError, DecisionClient> {
+  const answers = yield* (yield* DecisionClient).request({
     model: 'jev-latest',
     state: `PUZZLE:
 ${puzzle.surface}
@@ -67,14 +71,18 @@ ${question}`,
     answer: answers['answer']!.choice,
   }).pipe(
     Effect.mapError(
-      (cause) => new JevError({ message: JEV_ERROR_MESSAGE, cause })
+      (cause) => new DecisionError({ message: DECISION_ERROR_MESSAGE, cause })
     )
   );
 });
 export const evaluateSolution = Effect.fnUntraced(function* (
   puzzle: Puzzle,
   solution: string
-): Effect.fn.Return<SolutionResult, JevError | InvalidPuzzleError, JevClient> {
+): Effect.fn.Return<
+  SolutionResult,
+  DecisionError | InvalidPuzzleError,
+  DecisionClient
+> {
   const keyFacts = Arr.copy(puzzle.keyFacts);
   if (!Arr.isArrayNonEmpty(keyFacts))
     return yield* Effect.fail(
@@ -93,7 +101,7 @@ export const evaluateSolution = Effect.fnUntraced(function* (
       },
     ])
   );
-  const answers = yield* (yield* JevClient).request({
+  const answers = yield* (yield* DecisionClient).request({
     model: 'jev-latest',
     state: `PUZZLE:
 ${puzzle.surface}
@@ -120,10 +128,10 @@ ${solution}`,
 });
 export const testConnection = Effect.fnUntraced(function* (): Effect.fn.Return<
   void,
-  JevError,
-  JevClient
+  DecisionError,
+  DecisionClient
 > {
-  const answers = yield* (yield* JevClient).request({
+  const answers = yield* (yield* DecisionClient).request({
     model: 'jev-latest',
     state: 'Connection test: ready',
     questions: {
@@ -141,8 +149,8 @@ export const testConnection = Effect.fnUntraced(function* (): Effect.fn.Return<
     Match.when('ready', () => Effect.void),
     Match.orElse(() =>
       Effect.fail(
-        new JevError({
-          message: JEV_ERROR_MESSAGE,
+        new DecisionError({
+          message: DECISION_ERROR_MESSAGE,
           cause: 'Connection not ready',
         })
       )

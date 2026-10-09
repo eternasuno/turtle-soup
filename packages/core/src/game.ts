@@ -1,11 +1,11 @@
 import { Array as Arr, Effect, Match, Option, Random, Schema } from 'effect';
 import {
   askQuestion,
+  type DecisionClient,
+  type DecisionError,
   evaluateSolution,
   type InvalidPuzzleError,
-  type JevClient,
-  type JevError,
-} from './jev';
+} from './decision';
 
 import type { Puzzle, SubmissionResult } from './types';
 
@@ -44,7 +44,7 @@ export function selectPuzzle(
 export const submitQuestion = Effect.fnUntraced(function* (
   puzzle: Puzzle,
   input: string
-): Effect.fn.Return<SubmissionResult, JevError, JevClient> {
+): Effect.fn.Return<SubmissionResult, DecisionError, DecisionClient> {
   const result = yield* askQuestion(puzzle, input);
   return { content: questionLabels[result.answer], status: 'playing' };
 });
@@ -54,8 +54,8 @@ export const submitSolution = Effect.fnUntraced(function* (
   input: string
 ): Effect.fn.Return<
   SubmissionResult,
-  JevError | InvalidPuzzleError,
-  JevClient
+  DecisionError | InvalidPuzzleError,
+  DecisionClient
 > {
   const result = yield* evaluateSolution(puzzle, input);
   return {

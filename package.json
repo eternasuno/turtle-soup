@@ -2,7 +2,7 @@
   "name": "template",
   "version": "0.1.0",
   "private": true,
-  "description": "A static turtle soup game with SolidJS and Jev.",
+  "description": "A static turtle soup game with SolidJS and Decision.",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@12.3.4",

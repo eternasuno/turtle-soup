@@ -16,11 +16,13 @@ export const Puzzle = Schema.Struct({
 });
 export type Puzzle = typeof Puzzle.Type;
 
-export const JevSettings = Schema.Struct({
+export const DecisionSettings = Schema.Struct({
+  provider: Schema.optionalKey(Schema.Literals(['api', 'local'])),
+  backend: Schema.optionalKey(Schema.Literals(['wasm', 'webgpu'])),
   apiUrl: Schema.String,
   apiKey: Schema.String,
 });
-export type JevSettings = typeof JevSettings.Type;
+export type DecisionSettings = typeof DecisionSettings.Type;
 
 export const RequestSettings = Schema.Struct({
   apiUrl: Schema.Trim.check(
