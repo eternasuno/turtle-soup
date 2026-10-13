@@ -1,6 +1,84 @@
-import { Context, Effect, Option, Schema } from 'effect';
-import { normalizeSettings } from './decision-client';
-import { DecisionSettings } from './types';
+import { Context, Effect, Option, Redacted, Schema } from 'effect';
+import { DecisionConfiguration, DecisionSettings } from './types';
+
+export class SettingsError extends Schema.TaggedError<SettingsError>()(
+  'SettingsError',
+  { message: Schema.String }
+) {}
+
+function settingsValidationMessage(settings: DecisionSettings): string {
+  if (settings.provider === 'local') {
+    return '请填写有效的本地模型配置。';
+  }
+
+  if (!settings.apiUrl.trim()) {
+    return '请填写 API URL。';
+  }
+
+  if (!settings.apiKey.trim()) {
+    return '请填写 API Key。';
+  }
+
+  if (settings.apiModel !== undefined && !settings.apiModel.trim()) {
+    return '请填写 API Model。';
+  }
+
+  return '请填写有效的 HTTP(S) API URL。';
+}
+
+export const resolveDecisionConfiguration = (
+  settings: DecisionSettings
+): Effect.Effect<DecisionConfiguration, SettingsError> =>
+  Schema.decodeUnknownEffect(DecisionSettings)(settings).pipe(
+    Effect.flatMap((draft) =>
+      Schema.decodeUnknownEffect(DecisionConfiguration)(
+        draft.provider === 'local'
+          ? {
+              provider: 'local',
+              modelId:
+                draft.modelId?.trim() ??
+                'onnx-community/laya-multilingual-ONNX',
+              backend: draft.backend ?? 'wasm',
+            }
+          : {
+              provider: 'api',
+              url: draft.apiUrl,
+              model: draft.apiModel ?? 'jev-latest',
+              key: Redacted.make(draft.apiKey.trim()),
+            }
+      )
+    ),
+    Effect.mapError(
+      () =>
+        new SettingsError({
+          message: settingsValidationMessage(settings),
+        })
+    )
+  );
+
+export const normalizeSettings = (settings: DecisionSettings) =>
+  resolveDecisionConfiguration(settings).pipe(
+    Effect.map(
+      (configuration): DecisionSettings => ({
+        ...settings,
+        ...(configuration.provider === 'api'
+          ? {
+              apiUrl: configuration.url,
+              apiKey: Redacted.value(configuration.key),
+            }
+          : {}),
+        ...(settings.apiModel === undefined
+          ? {}
+          : { apiModel: settings.apiModel.trim() }),
+        ...(settings.modelId === undefined
+          ? {}
+          : { modelId: settings.modelId.trim() }),
+      })
+    )
+  );
+
+export const validateSettings = (settings: DecisionSettings) =>
+  normalizeSettings(settings).pipe(Effect.asVoid);
 
 export class SettingsReadError extends Schema.TaggedError<SettingsReadError>()(
   'SettingsReadError',

@@ -1,5 +1,5 @@
-import { Show } from '@solidjs/web';
-import { createSignal } from 'solid-js';
+import { Option } from 'effect';
+import { createSignal, Show } from 'solid-js';
 import puzzles from '../data/puzzles.json';
 import { useGame } from '../lib/game';
 import { Composer } from './Composer';
@@ -72,16 +72,18 @@ export function Game() {
           <div class="mt-6 hidden border-t border-base-300 pt-4 text-xs text-base-content/60 md:block">
             你可以提问，也可以直接说出你推理出的真相。
           </div>
-          <Show when={game.status() !== 'playing'}>
-            <section
-              class="mt-5 rounded-r-lg border-l-4 border-primary bg-primary/10 p-4"
-              aria-label="完整谜底"
-            >
-              <span class="text-[11px] font-bold tracking-wider text-primary">
-                {game.status() === 'solved' ? '解密成功' : '故事的真相'}
-              </span>
-              <p class="mt-2 text-sm leading-relaxed">{game.puzzle().truth}</p>
-            </section>
+          <Show when={Option.getOrUndefined(game.result())}>
+            {(result) => (
+              <section
+                class="mt-5 rounded-r-lg border-l-4 border-primary bg-primary/10 p-4"
+                aria-label="完整谜底"
+              >
+                <span class="text-[11px] font-bold tracking-wider text-primary">
+                  {game.status() === 'solved' ? '解密成功' : '故事的真相'}
+                </span>
+                <p class="mt-2 text-sm leading-relaxed">{result().truth}</p>
+              </section>
+            )}
           </Show>
           <div class="mt-auto flex flex-wrap items-center justify-between gap-3 pt-3 md:pt-6">
             <Show
@@ -121,12 +123,20 @@ export function Game() {
           <Composer game={game} />
         </section>
       </div>
-      <Show when={game.status() === 'solved' && !resultDismissed()}>
-        <ResultDialog
-          truth={game.puzzle().truth}
-          onClose={() => setResultDismissed(true)}
-          onNext={nextPuzzle}
-        />
+      <Show
+        when={
+          game.status() === 'solved' &&
+          !resultDismissed() &&
+          Option.getOrUndefined(game.result())
+        }
+      >
+        {(result) => (
+          <ResultDialog
+            truth={result().truth}
+            onClose={() => setResultDismissed(true)}
+            onNext={nextPuzzle}
+          />
+        )}
       </Show>
       <footer class="hidden shrink-0 text-center text-[11px] text-base-content/50 md:block">
         保持好奇，答案往往不在第一眼看到的地方。

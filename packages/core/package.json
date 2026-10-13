@@ -8,7 +8,9 @@
     "./game": "./src/game.ts",
     "./session": "./src/session.ts",
     "./settings": "./src/settings.ts",
-    "./decision": "./src/decision.ts"
+    "./decision": "./src/decision.ts",
+    "./decision-provider": "./src/decision-provider.ts",
+    "./model-management": "./src/model-management.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

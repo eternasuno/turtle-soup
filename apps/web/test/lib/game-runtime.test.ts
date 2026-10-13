@@ -3,8 +3,10 @@ import {
   DecisionClient,
   DecisionError,
 } from '@turtle-soup/core/decision';
+import { JevDecisionModel } from '@turtle-soup/core/decision-provider';
 import { Effect, Layer, Option } from 'effect';
-import { createRoot, flush } from 'solid-js';
+import { AiError, DecisionModel } from 'effect/ai';
+import { createRoot } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useGame } from '../../src/lib/game';
 
@@ -45,7 +47,6 @@ function pendingQuestion() {
 }
 function enter(content = '问题') {
   game.setInput(content);
-  flush();
 }
 
 it('reuses the configured runtime and replaces it without resetting the session', async () => {
@@ -53,18 +54,22 @@ it('reuses the configured runtime and replaces it without resetting the session'
   let released = 0;
   const configurations: string[] = [];
   const configured = (settings: { apiUrl: string; apiKey: string }) =>
-    Layer.effect(
-      DecisionClient,
-      Effect.acquireRelease(
-        Effect.sync(() => {
-          acquired += 1;
-          configurations.push(settings.apiKey);
-          return DecisionClient.of({ request: requestClient });
-        }),
-        () =>
-          Effect.sync(() => {
-            released += 1;
-          })
+    JevDecisionModel.pipe(
+      Layer.provide(
+        Layer.effect(
+          DecisionClient,
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              acquired += 1;
+              configurations.push(settings.apiKey);
+              return DecisionClient.of({ request: requestClient });
+            }),
+            () =>
+              Effect.sync(() => {
+                released += 1;
+              })
+          )
+        )
       )
     );
   createRoot((cleanup) => {
@@ -76,7 +81,6 @@ it('reuses the configured runtime and replaces it without resetting the session'
   await game.submit();
   enter('第二问');
   await game.submit();
-  flush();
   expect(acquired).toBe(1);
   const puzzle = game.puzzle();
   const messages = game.messages();
@@ -84,8 +88,8 @@ it('reuses the configured runtime and replaces it without resetting the session'
   requestClient.mockReturnValueOnce(old.effect);
   enter('保留输入');
   const pending = game.submit();
+  await vi.waitFor(() => expect(old.signal()).toBeDefined());
   game.setSettings({ apiUrl: 'https://decision.example', apiKey: 'new-key' });
-  flush();
   expect(old.signal().aborted).toBe(true);
   expect(game.puzzle()).toBe(puzzle);
   expect(game.messages()).toEqual(messages);
@@ -94,7 +98,6 @@ it('reuses the configured runtime and replaces it without resetting the session'
   old.resolve(answer('no'));
   await pending;
   await game.submit();
-  flush();
   expect(acquired).toBe(2);
   expect(released).toBe(1);
   expect(configurations.at(-1)).toBe('new-key');
@@ -108,7 +111,9 @@ function pendingClientLayer() {
   });
   const acquire = vi.fn(() => promise);
   return {
-    layer: Layer.effect(DecisionClient, Effect.promise(acquire)),
+    layer: JevDecisionModel.pipe(
+      Layer.provide(Layer.effect(DecisionClient, Effect.promise(acquire)))
+    ),
     acquire,
     resolve: () => resolve(DecisionClient.of({ request: requestClient })),
   };
@@ -124,8 +129,11 @@ it('shows invalid initial settings through the default client without fetching',
   });
   enter();
   await expect(game.submit()).resolves.toBeUndefined();
-  flush();
-  expect(game.error()).toEqual(Option.some('请填写 API URL。'));
+  await vi.waitFor(() =>
+    expect(game.error()).toEqual(
+      Option.some('Decision 请求失败，请检查 API URL、API Key 或网络状态。')
+    )
+  );
   expect(game.input()).toBe('问题');
   expect(game.loading()).toBe(false);
   expect(game.messages()).toEqual([]);
@@ -143,7 +151,12 @@ it('admits one concurrent submission while asynchronously acquiring the client',
   enter();
   const first = game.submit();
   const duplicate = game.submit();
-  expect(client.acquire).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(client.acquire).toHaveBeenCalledTimes(1));
+  expect(game.loading()).toBe(true);
+  expect(game.input()).toBe('');
+  expect(game.messages()).toEqual([
+    { role: 'user', mode: 'question', content: '问题' },
+  ]);
   expect(requestClient).not.toHaveBeenCalled();
   client.resolve();
   await vi.waitFor(() => expect(requestClient).toHaveBeenCalledTimes(1));
@@ -154,7 +167,6 @@ it('admits one concurrent submission while asynchronously acquiring the client',
   enter('下一问');
   requestClient.mockReturnValue(Effect.succeed(answer('no')));
   await game.submit();
-  flush();
   expect(client.acquire).toHaveBeenCalledTimes(1);
   expect(requestClient).toHaveBeenCalledTimes(2);
   expect(game.messages().map((message) => message.content)).toEqual([
@@ -179,7 +191,7 @@ it('never submits with an old client replaced during asynchronous acquisition', 
   const first = game.submit();
   game.setSettings({ apiUrl: 'https://decision.example', apiKey: 'new-key' });
   const second = game.submit();
-  expect(current.acquire).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(current.acquire).toHaveBeenCalledTimes(1));
   old.resolve();
   await expect(first).resolves.toBeUndefined();
   expect(requestClient).not.toHaveBeenCalled();
@@ -187,7 +199,6 @@ it('never submits with an old client replaced during asynchronous acquisition', 
   expect(requestClient).not.toHaveBeenCalled();
   current.resolve();
   await second;
-  flush();
   expect(requestClient).toHaveBeenCalledTimes(1);
   expect(game.messages().map((message) => message.content)).toEqual([
     '问题',
@@ -206,15 +217,84 @@ it.each(['dispose', 'reveal', 'reset'] as const)(
     requestClient.mockReturnValue(Effect.succeed(answer('yes')));
     enter();
     const pending = game.submit();
+    expect(game.loading()).toBe(true);
+    expect(game.input()).toBe('');
+    expect(game.messages()).toEqual([
+      { role: 'user', mode: 'question', content: '问题' },
+    ]);
     if (action === 'dispose') dispose();
     else if (action === 'reveal') game.reveal();
     else game.startNewGame();
     client.resolve();
     await expect(pending).resolves.toBeUndefined();
-    flush();
     expect(requestClient).not.toHaveBeenCalled();
-    expect(game.messages()).toEqual([]);
+    expect(game.messages()).toEqual(
+      action === 'dispose'
+        ? [{ role: 'user', mode: 'question', content: '问题' }]
+        : []
+    );
     expect(game.error()).toEqual(Option.none());
-    expect(game.loading()).toBe(false);
+    if (action !== 'dispose') expect(game.loading()).toBe(false);
+  }
+);
+
+it.each(['local', 'api'] as const)(
+  'preserves %s failures across the configured runtime without exposing metadata',
+  async (provider) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const description =
+      'Verdict input has 513 tokens; maximum is 512 (no truncation).';
+    const layer = Layer.effect(
+      DecisionModel.DecisionModel,
+      DecisionModel.make({
+        decide: () =>
+          Effect.fail(
+            AiError.make({
+              module:
+                provider === 'local' ? 'LayaDecisionModel' : 'JevDecisionModel',
+              method: 'decide',
+              reason: new AiError.UnknownError({
+                description:
+                  provider === 'local'
+                    ? description
+                    : 'secret-key https://private.example payload',
+                metadata: { payload: 'hidden puzzle', key: 'secret-key' },
+              }),
+            })
+          ),
+      })
+    );
+    createRoot((cleanup) => {
+      dispose = cleanup;
+      game = useGame(layer);
+    });
+    game.setSettings({
+      provider,
+      apiUrl: 'https://decision.example',
+      apiKey: 'secret-key',
+      modelId: 'verdict',
+      backend: 'wasm',
+    });
+    enter();
+    await game.submit();
+    expect(game.error()).toEqual(
+      Option.some(
+        provider === 'local'
+          ? `本地模型判定失败：${description}`
+          : 'Decision 请求失败，请检查 API URL、API Key 或网络状态。'
+      )
+    );
+    expect(game.input()).toBe('问题');
+    if (provider === 'local') {
+      expect(log).toHaveBeenCalledWith({
+        modelId: 'verdict',
+        backend: 'wasm',
+        stage: 'decide',
+        reason: description,
+      });
+    } else {
+      expect(log).not.toHaveBeenCalled();
+    }
+    log.mockRestore();
   }
 );

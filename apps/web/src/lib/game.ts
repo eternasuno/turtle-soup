@@ -1,9 +1,7 @@
-import {
-  DecisionClient,
-  DecisionError,
-  type SettingsError,
-} from '@turtle-soup/core/decision';
+import { RegistryContext, useAtomValue } from '@effect/atom-solid';
+import type { DecisionError } from '@turtle-soup/core/decision';
 import { makeSession } from '@turtle-soup/core/session';
+import type { SettingsError } from '@turtle-soup/core/settings';
 import { loadInitialSettings } from '@turtle-soup/core/settings';
 import { type DecisionSettings, Puzzle } from '@turtle-soup/core/types';
 import {
@@ -16,15 +14,57 @@ import {
   Option,
   Schema,
   Scope,
-  Stream,
 } from 'effect';
-import { createSignal, onCleanup } from 'solid-js';
+import { AiError, DecisionModel } from 'effect/ai';
+import { Atom, AtomRegistry } from 'effect/reactivity';
+import {
+  type Accessor,
+  createComponent,
+  createSignal,
+  onCleanup,
+} from 'solid-js';
 import puzzles from '../data/puzzles.json';
 import { configuredDecision } from './decision';
+import { localFailure } from './local-diagnostic';
 import { SettingsStorageLive } from './storage';
 
 const puzzleBank = Schema.decodeUnknownSync(Schema.Array(Puzzle))(puzzles);
-type ClientLayer = Layer.Layer<DecisionClient, SettingsError | DecisionError>;
+type ClientLayer = Layer.Layer<
+  DecisionModel.DecisionModel,
+  SettingsError | DecisionError | AiError.AiError
+>;
+
+const yieldForPaint = (signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    let frame: number | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cleanup = () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      if (timer !== undefined) clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
+    };
+    const abort = () => {
+      cleanup();
+      reject(signal.reason);
+    };
+    const complete = () => {
+      cleanup();
+      resolve();
+    };
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (typeof requestAnimationFrame === 'function') {
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(complete);
+      });
+    } else {
+      timer = setTimeout(complete, 0);
+    }
+  });
 
 export function useGame(
   configuredClient:
@@ -35,7 +75,24 @@ export function useGame(
   const session = Effect.runSync(
     makeSession(puzzleBank).pipe(Effect.provideService(Scope.Scope, scope))
   );
-  const [state, setState] = createSignal(Effect.runSync(session.snapshot));
+  const registry = AtomRegistry.make();
+  const changes = Atom.make(session.changes, {
+    initialValue: Effect.runSync(session.snapshot),
+  });
+  const snapshot = Atom.make((get) => {
+    get(changes);
+
+    return Effect.runSync(session.snapshot);
+  });
+  let state!: Accessor<Atom.Type<typeof snapshot>>;
+  createComponent(RegistryContext.Provider, {
+    value: registry,
+    get children() {
+      state = useAtomValue(() => snapshot);
+
+      return null;
+    },
+  });
   const [settings, setSettingsSignal] = createSignal(
     Effect.runSync(
       loadInitialSettings().pipe(Effect.provide(SettingsStorageLive))
@@ -49,70 +106,120 @@ export function useGame(
     return ManagedRuntime.make(
       layer.pipe(
         Layer.catch((error) =>
-          Layer.succeed(DecisionClient, {
-            request: () =>
-              Effect.fail(
-                new DecisionError({ message: error.message, cause: error })
-              ),
-          })
+          Layer.effect(
+            DecisionModel.DecisionModel,
+            DecisionModel.make({
+              decide: () =>
+                Effect.fail(
+                  AiError.make({
+                    module: 'Game',
+                    method: 'configure',
+                    reason: new AiError.UnknownError({
+                      description: error.message,
+                    }),
+                  })
+                ),
+            })
+          )
         )
       )
     );
   };
   let runtime = makeRuntime(settings());
   let disposed = false;
-  let acquisition = Option.none<object>();
-  const subscription = Effect.runFork(
-    session.changes.pipe(
-      Stream.runForEach((snapshot) =>
-        Effect.sync(() => {
-          if (!disposed) setState(snapshot);
-        })
-      )
-    )
-  );
+
+  const refresh = () => {
+    registry.refresh(snapshot);
+    registry.get(snapshot);
+  };
   const execute = <A, E>(command: Effect.Effect<A, E>) => {
     const result = Effect.runSync(command);
-    setState(Effect.runSync(session.snapshot));
+    refresh();
     return result;
   };
   onCleanup(() => {
-    disposed = true;
-    acquisition = Option.none();
     execute(session.cancel);
-    subscription.interruptUnsafe();
+    disposed = true;
+    registry.dispose();
     void Effect.runPromise(Scope.close(scope, Exit.void));
     void runtime.dispose();
   });
   const submit = async () => {
-    if (disposed || Option.isSome(acquisition)) return;
+    if (disposed) return;
+
     const configured = runtime;
-    const token = {};
-    acquisition = Option.some(token);
-    const pending = configured.runPromiseExit(
-      Effect.gen(function* () {
-        if (
-          disposed ||
-          runtime !== configured ||
-          !Option.exists(acquisition, (current) => current === token)
-        )
-          return;
-        acquisition = Option.none();
-        const request = yield* session.submit;
-        if (Option.isSome(request)) return yield* Fiber.join(request.value);
-      })
+    const configuration = settings();
+    const model = DecisionModel.DecisionModel.of({
+      [DecisionModel.TypeId]: DecisionModel.TypeId,
+      decide: (definition, options) =>
+        Effect.context<typeof definition.input.EncodingServices>().pipe(
+          Effect.flatMap((context) =>
+            Effect.tryPromise({
+              try: async (signal) => {
+                await yieldForPaint(signal);
+                signal.throwIfAborted();
+
+                return configured.runPromiseExit(
+                  DecisionModel.DecisionModel.use((realModel) =>
+                    realModel.decide(definition, options).pipe(
+                      Effect.provideContext(context),
+                      Effect.mapError((cause) => {
+                        if (configuration.provider !== 'local') return cause;
+
+                        const diagnostic = localFailure(cause);
+                        console.error({
+                          modelId:
+                            configuration.modelId ??
+                            'onnx-community/laya-multilingual-ONNX',
+                          backend: configuration.backend ?? 'wasm',
+                          ...diagnostic,
+                        });
+
+                        return AiError.make({
+                          module: 'LayaDecisionModel',
+                          method: cause.method,
+                          reason: new AiError.UnknownError({
+                            description: diagnostic.reason,
+                          }),
+                        });
+                      })
+                    )
+                  ),
+                  { signal }
+                );
+              },
+              catch: () =>
+                AiError.make({
+                  module: 'Game',
+                  method: 'decide',
+                  reason: new AiError.UnknownError({
+                    description: 'Decision runtime failed',
+                  }),
+                }),
+            }).pipe(
+              Effect.flatMap((exit) =>
+                Exit.isSuccess(exit)
+                  ? Effect.succeed(exit.value)
+                  : Effect.failCause(exit.cause)
+              )
+            )
+          )
+        ),
+    });
+    const request = execute(
+      session.submit.pipe(
+        Effect.provideService(DecisionModel.DecisionModel, model)
+      )
     );
-    setState(Effect.runSync(session.snapshot));
-    const exit = await pending;
-    if (Option.exists(acquisition, (current) => current === token))
-      acquisition = Option.none();
+    if (Option.isNone(request)) return;
+
+    const exit = await Effect.runPromiseExit(Fiber.join(request.value));
     if (Exit.isFailure(exit) && !Cause.hasInterrupts(exit.cause))
-      console.error(exit.cause);
-    if (!disposed) setState(Effect.runSync(session.snapshot));
+      console.error('Game request failed unexpectedly.');
+    if (!disposed) refresh();
   };
   const setSettings = (settings: DecisionSettings) => {
     if (disposed) return;
-    acquisition = Option.none();
     execute(session.cancel);
     const previous = runtime;
     runtime = makeRuntime(settings);
@@ -129,17 +236,12 @@ export function useGame(
     setInput: (input: string) => execute(session.setInput(input)),
     loading: () => state().loading,
     status: () => state().status,
+    result: () => state().result,
     error: () => state().error,
     settings,
     setSettings,
-    reveal: () => {
-      acquisition = Option.none();
-      return execute(session.reveal);
-    },
-    startNewGame: () => {
-      acquisition = Option.none();
-      return execute(session.startNewGame);
-    },
+    reveal: () => execute(session.reveal),
+    startNewGame: () => execute(session.startNewGame),
     submit,
   };
 }

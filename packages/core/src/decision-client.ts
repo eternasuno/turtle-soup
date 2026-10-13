@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Match, Schema } from 'effect';
+import { Context, Effect, Layer, Redacted, Schema } from 'effect';
 import {
   FetchHttpClient,
   HttpClient,
@@ -10,7 +10,10 @@ import {
   DecisionRequest,
   responseFor,
 } from './decision-schema';
-import { DecisionSettings, RequestSettings } from './types';
+import { resolveDecisionConfiguration, SettingsError } from './settings';
+import type { DecisionSettings } from './types';
+
+export { normalizeSettings, SettingsError, validateSettings } from './settings';
 
 export const DECISION_ERROR_MESSAGE =
   'Decision 请求失败，请检查 API URL、API Key 或网络状态。';
@@ -22,46 +25,6 @@ export class DecisionError extends Schema.TaggedError<DecisionError>()(
     cause: Schema.Unknown,
   }
 ) {}
-export class SettingsError extends Schema.TaggedError<SettingsError>()(
-  'SettingsError',
-  {
-    message: Schema.String,
-  }
-) {}
-
-export const normalizeSettings = (
-  settings: DecisionSettings
-): Effect.Effect<DecisionSettings, SettingsError> =>
-  (settings.provider === 'local'
-    ? Schema.decodeUnknownEffect(DecisionSettings)(settings)
-    : Schema.decodeUnknownEffect(RequestSettings)(settings).pipe(
-        Effect.map((valid) =>
-          settings.provider === 'api'
-            ? { ...valid, provider: 'api' as const }
-            : valid
-        )
-      )
-  ).pipe(
-    Effect.mapError(() => {
-      const message = Match.value(settings).pipe(
-        Match.when(
-          ({ apiUrl }) => !apiUrl.trim(),
-          () => '请填写 API URL。'
-        ),
-        Match.when(
-          ({ apiKey }) => !apiKey.trim(),
-          () => '请填写 API Key。'
-        ),
-        Match.orElse(() => '请填写有效的 HTTP(S) API URL。')
-      );
-      return new SettingsError({ message });
-    })
-  );
-
-export const validateSettings = (
-  settings: DecisionSettings
-): Effect.Effect<void, SettingsError> =>
-  normalizeSettings(settings).pipe(Effect.asVoid);
 
 export class DecisionClient extends Context.Service<
   DecisionClient,
@@ -76,16 +39,25 @@ export const DecisionClientLayer = (settings: DecisionSettings) =>
   Layer.effect(
     DecisionClient,
     Effect.gen(function* () {
-      const valid = yield* normalizeSettings(settings);
+      const valid = yield* resolveDecisionConfiguration(settings);
+      if (valid.provider !== 'api') {
+        return yield* Effect.fail(
+          new SettingsError({ message: 'API 客户端需要 API 配置。' })
+        );
+      }
+
       const client = (yield* HttpClient.HttpClient).pipe(
         HttpClient.filterStatusOk,
         HttpClient.withScope
       );
       const request = Effect.fnUntraced(function* (payload: DecisionRequest) {
         return yield* Effect.gen(function* () {
-          const request = yield* HttpClientRequest.post(valid.apiUrl).pipe(
-            HttpClientRequest.bearerToken(valid.apiKey),
-            HttpClientRequest.schemaBodyJson(DecisionRequest)(payload)
+          const request = yield* HttpClientRequest.post(valid.url).pipe(
+            HttpClientRequest.bearerToken(Redacted.value(valid.key)),
+            HttpClientRequest.schemaBodyJson(DecisionRequest)({
+              ...payload,
+              model: valid.model,
+            })
           );
           const response = yield* client.execute(request);
           const decoded = yield* HttpClientResponse.schemaBodyJson(

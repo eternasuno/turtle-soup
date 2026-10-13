@@ -50,6 +50,7 @@ Thumbs.db
 *.swp
 
 # Misc tooling caches
+.maki/
 .eslintcache
 .stylelintcache
 .npm

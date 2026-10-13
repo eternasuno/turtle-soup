@@ -5,17 +5,17 @@ import { TestClock } from 'effect/testing';
 import {
   askQuestion,
   DECISION_ERROR_MESSAGE,
-  DecisionClientLive,
   evaluateSolution,
   testConnection,
 } from '../src/decision';
+import { JevDecisionModelLive } from '../src/decision-provider';
 
 const puzzle = {
   id: 'soup',
   title: '海龟汤',
   surface: '谜面',
   truth: '谜底',
-  keyFacts: ['事实'],
+  judgmentPoints: [{ id: 'fact', description: '事实' }],
 };
 const settings = { apiUrl: 'https://decision.example', apiKey: 'secret' };
 const operations = [
@@ -40,7 +40,7 @@ it.effect.each(operations)('aborts $name at 30 seconds', ({ operation }) =>
         });
       });
     };
-    const layer = DecisionClientLive(settings).pipe(
+    const layer = JevDecisionModelLive(settings).pipe(
       Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
     );
     const fiber = yield* Effect.forkChild(
@@ -76,7 +76,7 @@ it.effect.each(operations)(
           );
         });
       };
-      const layer = DecisionClientLive(settings).pipe(
+      const layer = JevDecisionModelLive(settings).pipe(
         Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
       );
       const fiber = yield* Effect.forkChild(
@@ -118,7 +118,7 @@ it.effect.each(['status', 'body'] as const)(
         expect(signal?.aborted).toBe(true);
       }).pipe(
         Effect.provide(
-          DecisionClientLive(settings).pipe(
+          JevDecisionModelLive(settings).pipe(
             Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
           )
         )
@@ -150,7 +150,7 @@ it.effect('keeps body decoding within the request scope and timeout', () =>
     const fiber = yield* Effect.forkChild(
       askQuestion(puzzle, '问题').pipe(
         Effect.provide(
-          DecisionClientLive(settings).pipe(
+          JevDecisionModelLive(settings).pipe(
             Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
           )
         ),

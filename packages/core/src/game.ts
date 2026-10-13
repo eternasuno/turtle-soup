@@ -1,13 +1,18 @@
 import { Array as Arr, Effect, Match, Option, Random, Schema } from 'effect';
+import type { DecisionModel } from 'effect/ai';
 import {
   askQuestion,
-  type DecisionClient,
   type DecisionError,
   evaluateSolution,
   type InvalidPuzzleError,
 } from './decision';
+import type { Puzzle, PuzzleView, SubmissionResult } from './types';
 
-import type { Puzzle, SubmissionResult } from './types';
+export const puzzleView = (puzzle: Puzzle): PuzzleView => ({
+  id: puzzle.id,
+  title: puzzle.title,
+  surface: puzzle.surface,
+});
 
 export { solutionStatus } from './solution';
 
@@ -44,7 +49,11 @@ export function selectPuzzle(
 export const submitQuestion = Effect.fnUntraced(function* (
   puzzle: Puzzle,
   input: string
-): Effect.fn.Return<SubmissionResult, DecisionError, DecisionClient> {
+): Effect.fn.Return<
+  SubmissionResult,
+  DecisionError,
+  DecisionModel.DecisionModel
+> {
   const result = yield* askQuestion(puzzle, input);
   return { content: questionLabels[result.answer], status: 'playing' };
 });
@@ -55,7 +64,7 @@ export const submitSolution = Effect.fnUntraced(function* (
 ): Effect.fn.Return<
   SubmissionResult,
   DecisionError | InvalidPuzzleError,
-  DecisionClient
+  DecisionModel.DecisionModel
 > {
   const result = yield* evaluateSolution(puzzle, input);
   return {

@@ -10,7 +10,7 @@ export const ChoiceQuestion = Schema.Struct({
 });
 export type ChoiceQuestion = typeof ChoiceQuestion.Type;
 export const DecisionRequest = Schema.Struct({
-  model: Schema.Literal('jev-latest'),
+  model: NonBlankString,
   state: NonBlankString,
   questions: Schema.Record(NonBlankString, ChoiceQuestion).check(
     Schema.isMinProperties(1)
@@ -20,6 +20,7 @@ export type DecisionRequest = typeof DecisionRequest.Type;
 export const ChoiceAnswer = Schema.Struct({
   type: Schema.Literal('choice'),
   choice: NonBlankString,
+  probabilities: Schema.optionalKey(Schema.Record(NonBlankString, Confidence)),
   confidence: Schema.optionalKey(Confidence),
 });
 export type ChoiceAnswer = typeof ChoiceAnswer.Type;

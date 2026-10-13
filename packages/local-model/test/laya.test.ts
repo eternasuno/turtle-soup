@@ -1,100 +1,7 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import { completeCache, mocks, payload, setup } from './laya-mocks';
 
-const mocks = vi.hoisted(() => ({
-  config: vi.fn(),
-  tokenizer: vi.fn(),
-  model: vi.fn(),
-  modelFiles: vi.fn(),
-  env: {
-    allowLocalModels: false,
-    cacheKey: 'transformers-cache',
-    remoteHost: 'https://huggingface.co/',
-    remotePathTemplate: '{model}/resolve/{revision}/',
-  },
-}));
-
-vi.mock('@huggingface/transformers', () => ({
-  env: mocks.env,
-  AutoConfig: { from_pretrained: mocks.config },
-  AutoTokenizer: { from_pretrained: mocks.tokenizer },
-  AutoModel: { from_pretrained: mocks.model },
-  ModelRegistry: { get_model_files: mocks.modelFiles },
-  Tensor: class Tensor {
-    constructor(
-      public type: string,
-      public data: ArrayLike<number | bigint>,
-      public dims: number[]
-    ) {}
-  },
-}));
-
-import { deleteLayaCache, isLayaCached, loadLaya } from '../src/laya';
-
-const payload = (state = 'fact') => ({
-  model: 'jev-latest' as const,
-  state,
-  questions: {
-    answer: {
-      type: 'choice' as const,
-      instructions: 'Select an answer',
-      criteria: { yes: 'It is true', no: 'It is false' },
-    },
-  },
-});
-
-function setup() {
-  const dispose = vi.fn(async () => {});
-  const tokenizer = Object.assign(
-    (text: string) => ({
-      input_ids: {
-        data: text.trim()
-          ? text
-              .trim()
-              .split(' ')
-              .map((word) => word.length)
-          : [],
-      },
-    }),
-    {
-      config: {
-        cls_token: 'C',
-        sep_token: 'S',
-        mask_token: 'M',
-        pad_token: 'P',
-      },
-    }
-  );
-  mocks.config.mockResolvedValue({
-    laya: { head_max_len: 128, max_len: 256, temperature: [2] },
-  });
-  mocks.tokenizer.mockResolvedValue(tokenizer);
-  mocks.model.mockResolvedValue(
-    Object.assign(
-      async (
-        inputs: Record<
-          string,
-          { type: string; data: ArrayLike<number | bigint>; dims: number[] }
-        >
-      ) => {
-        expect(inputs['input_ids']!.type).toBe('int64');
-        expect(inputs['marker_pos']!.dims).toEqual([1, 2]);
-        expect(inputs['marker_mask']!.type).toBe('bool');
-        expect(inputs['attention_mask']!.dims).toEqual(
-          inputs['input_ids']!.dims
-        );
-        return { logits: { to: () => ({ data: [4, 2] }) } };
-      },
-      { dispose }
-    )
-  );
-  return { dispose };
-}
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.clearAllMocks();
-  mocks.env.allowLocalModels = false;
-});
+const { deleteLayaCache, isLayaCached, loadLaya } = await import('../src/laya');
 
 it('deletes only Laya cache entries, including incomplete downloads', async () => {
   const prefix =
@@ -171,7 +78,7 @@ it('loads WASM fp16 without WebGPU and never selects fp32', async () => {
   mocks.env.allowLocalModels = true;
   const model = await loadLaya();
 
-  expect(mocks.env.allowLocalModels).toBe(false);
+  expect(mocks.env.allowLocalModels).toBe(true);
   expect(mocks.model).toHaveBeenCalledExactlyOnceWith(
     'onnx-community/laya-multilingual-ONNX',
     expect.objectContaining({
@@ -193,6 +100,13 @@ it('decodes nested config, builds described tensors, calibrates finite output, a
   const laya = await loadLaya();
   const answer = await laya.request(payload());
   expect(answer['answer']!).toMatchObject({ type: 'choice', choice: 'yes' });
+  expect(answer['answer']!.probabilities).toEqual({
+    yes: 1 / (1 + Math.exp(-1)),
+    no: Math.exp(-1) / (1 + Math.exp(-1)),
+  });
+  expect(answer['answer']!.confidence).toBe(
+    answer['answer']!.probabilities!['yes']
+  );
   const pending = laya.request(payload());
   const disposing = laya.dispose();
   await pending;
@@ -274,7 +188,7 @@ it('selects WebGPU with fp16 and cache-only loading for separate testing', async
   });
   const model = await loadLaya(undefined, undefined, 'webgpu', true);
 
-  expect(mocks.env.allowLocalModels).toBe(true);
+  expect(mocks.env.allowLocalModels).toBe(false);
 
   expect(mocks.model).toHaveBeenCalledExactlyOnceWith(
     'onnx-community/laya-multilingual-ONNX',
@@ -290,4 +204,61 @@ it('selects WebGPU with fp16 and cache-only loading for separate testing', async
     expect.objectContaining({ local_files_only: true })
   );
   await model.dispose();
+});
+
+it('serializes cache inspection against download and restores global environment', async () => {
+  setup();
+  completeCache();
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  mocks.tokenizer.mockImplementationOnce(async () => {
+    expect(mocks.env.allowLocalModels).toBe(false);
+    await gate;
+    expect(mocks.env.allowLocalModels).toBe(false);
+
+    return { config: {} };
+  });
+  const loading = loadLaya();
+  await vi.waitFor(() => expect(mocks.tokenizer).toHaveBeenCalled());
+  const inspection = isLayaCached();
+  await Promise.resolve();
+  expect(mocks.config).toHaveBeenCalledTimes(1);
+  finish();
+  const model = await loading;
+  expect(await inspection).toBe(true);
+  expect(mocks.env.allowLocalModels).toBe(false);
+  await model.dispose();
+});
+
+it('preserves prototype-named answer IDs and choice probabilities', async () => {
+  setup();
+  const laya = await loadLaya();
+  const request = {
+    ...payload(),
+    questions: Object.fromEntries([
+      [
+        '__proto__',
+        {
+          ...payload().questions.answer,
+          criteria: Object.fromEntries([
+            ['__proto__', 'It is true'],
+            ['constructor', 'It is false'],
+          ]),
+        },
+      ],
+    ]),
+  };
+  const answers = await laya.request(request);
+  const answer = answers['__proto__']!;
+
+  expect(Object.getPrototypeOf(answers)).toBeNull();
+  expect(Object.hasOwn(answers, '__proto__')).toBe(true);
+  expect(answer.choice).toBe('__proto__');
+  expect(Object.hasOwn(answer.probabilities!, '__proto__')).toBe(true);
+  expect(answer.probabilities!['__proto__']).toBeCloseTo(0.7310585786);
+  expect(answer.probabilities!['constructor']).toBeCloseTo(0.2689414214);
+  expect(answer.confidence).toBe(answer.probabilities!['__proto__']);
+  await laya.dispose();
 });

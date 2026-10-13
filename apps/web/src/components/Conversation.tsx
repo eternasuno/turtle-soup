@@ -1,12 +1,20 @@
-import { For, Show } from '@solidjs/web';
 import type { Message } from '@turtle-soup/core/types';
+import { createEffect, For, Show } from 'solid-js';
 
 export function Conversation(props: {
   messages: ReadonlyArray<Message>;
   loading: boolean;
 }) {
+  let history: HTMLElement | undefined;
+  createEffect(() => {
+    props.messages.length;
+    props.loading;
+    if (history) history.scrollTop = history.scrollHeight;
+  });
+
   return (
     <section
+      ref={history}
       class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3.5 break-words md:p-5"
       aria-label="对话历史"
       aria-live="polite"
@@ -44,9 +52,21 @@ export function Conversation(props: {
         </For>
       </Show>
       <Show when={props.loading}>
-        <p class="my-2 text-sm text-primary" role="status">
-          主持人正在判断，请稍候…
-        </p>
+        <article
+          class="chat chat-start"
+          role="status"
+          aria-label="主持人正在判定"
+        >
+          <span class="text-[11px] font-semibold text-base-content/60">
+            主持人
+          </span>
+          <div class="chat-bubble flex items-center gap-2 bg-base-200 text-sm text-base-content">
+            <span
+              class="loading loading-dots loading-sm motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+          </div>
+        </article>
       </Show>
     </section>
   );

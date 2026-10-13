@@ -44,6 +44,25 @@ const Config = Schema.Struct({
 });
 const aborted = () => new DOMException('Aborted', 'AbortError');
 
+let assetQueue = Promise.resolve();
+
+function coordinateAssets<A>(operation: () => Promise<A>): Promise<A> {
+  const pending = assetQueue.then(async () => {
+    const allowLocalModels = env.allowLocalModels;
+    try {
+      return await operation();
+    } finally {
+      env.allowLocalModels = allowLocalModels;
+    }
+  });
+  assetQueue = pending.then(
+    () => undefined,
+    () => undefined
+  );
+
+  return pending;
+}
+
 class LayaModel {
   private queue = Promise.resolve();
   private disposed = false;
@@ -93,7 +112,11 @@ class LayaModel {
   }
 }
 
-export async function deleteLayaCache(): Promise<void> {
+export function deleteLayaCache(): Promise<void> {
+  return coordinateAssets(deleteCache);
+}
+
+async function deleteCache(): Promise<void> {
   if (typeof caches === 'undefined') return;
 
   const cache = await caches.open(env.cacheKey);
@@ -111,7 +134,11 @@ export async function deleteLayaCache(): Promise<void> {
   }
 }
 
-export async function isLayaCached(): Promise<boolean> {
+export function isLayaCached(): Promise<boolean> {
+  return coordinateAssets(inspectCache);
+}
+
+async function inspectCache(): Promise<boolean> {
   if (typeof caches === 'undefined') return false;
 
   const cache = await caches.open(env.cacheKey);
@@ -137,37 +164,16 @@ export async function isLayaCached(): Promise<boolean> {
   );
 }
 
-async function acquireAssets(
-  device: 'wasm' | 'webgpu',
+async function loadMetadata(
   localFilesOnly: boolean,
-  onProgress?: (progress: LayaProgress) => void
-): Promise<LayaAssets> {
-  if (localFilesOnly && !(await isLayaCached())) {
-    throw new Error('模型缓存不完整，请先下载模型。');
-  }
-
-  env.allowLocalModels = localFilesOnly;
-
-  const progress_callback = (event: {
+  progress_callback: (event: {
     status: string;
     file?: string;
     loaded?: number;
     total?: number;
-  }) => {
-    if (
-      event.status !== 'progress' ||
-      event.file === undefined ||
-      event.loaded === undefined ||
-      event.total === undefined
-    )
-      return;
-    onProgress?.({
-      file: event.file,
-      loaded: event.loaded,
-      total: event.total,
-    });
-  };
-  const [rawConfig, tokenizer] = await Promise.all([
+  }) => void
+) {
+  const results = await Promise.allSettled([
     AutoConfig.from_pretrained('onnx-community/laya-multilingual-ONNX', {
       progress_callback,
       local_files_only: localFilesOnly,
@@ -177,7 +183,60 @@ async function acquireAssets(
       local_files_only: localFilesOnly,
     }),
   ]);
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed?.status === 'rejected') throw failed.reason;
+
+  const rawConfig = (
+    results[0] as PromiseFulfilledResult<
+      Awaited<ReturnType<typeof AutoConfig.from_pretrained>>
+    >
+  ).value;
+  const tokenizer = (results[1] as PromiseFulfilledResult<unknown>).value;
   const { laya: config } = Schema.decodeUnknownSync(Config)(rawConfig);
+
+  return { rawConfig, config, tokenizer: tokenizer as Tokenizer };
+}
+
+function reportProgress(
+  onProgress: ((progress: LayaProgress) => void) | undefined,
+  event: {
+    status: string;
+    file?: string;
+    loaded?: number;
+    total?: number;
+  }
+) {
+  if (
+    event.status !== 'progress' ||
+    event.file === undefined ||
+    event.loaded === undefined ||
+    event.total === undefined
+  )
+    return;
+  onProgress?.({
+    file: event.file,
+    loaded: event.loaded,
+    total: event.total,
+  });
+}
+
+async function acquireAssets(
+  device: 'wasm' | 'webgpu',
+  localFilesOnly: boolean,
+  onProgress?: (progress: LayaProgress) => void
+): Promise<LayaAssets> {
+  if (localFilesOnly && !(await inspectCache())) {
+    throw new Error('模型缓存不完整，请先下载模型。');
+  }
+
+  env.allowLocalModels = localFilesOnly;
+
+  const progress_callback = (event: Parameters<typeof reportProgress>[1]) =>
+    reportProgress(onProgress, event);
+  const { rawConfig, config, tokenizer } = await loadMetadata(
+    localFilesOnly,
+    progress_callback
+  );
   const model = await AutoModel.from_pretrained(
     'onnx-community/laya-multilingual-ONNX',
     {
@@ -199,7 +258,11 @@ async function loadAssets(
   localFilesOnly: boolean
 ): Promise<LayaAssets> {
   if (signal?.aborted) throw aborted();
-  const assets = await acquireAssets(device, localFilesOnly, onProgress);
+  const assets = await coordinateAssets(() => {
+    if (signal?.aborted) throw aborted();
+
+    return acquireAssets(device, localFilesOnly, onProgress);
+  });
   if (signal?.aborted) {
     await assets.model.dispose?.();
     throw aborted();
