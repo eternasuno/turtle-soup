@@ -1,43 +1,67 @@
-import { DecisionClient, DecisionError } from '@turtle-soup/core/decision';
+import {
+  choiceAnswersToProvider,
+  providerOptionsToRequest,
+} from '@turtle-soup/core/decision-provider';
+import type { LocalModelId } from '@turtle-soup/core/types';
 import { Effect, Layer } from 'effect';
+import { AiError, DecisionModel } from 'effect/ai';
 import type { LayaProgress } from './laya';
+import { createLayaWorker } from './worker-client';
 
-export const LocalDecisionClientLive = (
+const modelError = (method: string, cause: unknown) =>
+  AiError.make({
+    module: 'LayaDecisionModel',
+    method,
+    reason: new AiError.UnknownError({
+      description: cause instanceof Error ? cause.message : String(cause),
+      metadata: {
+        cause: cause instanceof Error ? cause.message : String(cause),
+      },
+    }),
+  });
+
+export const LocalDecisionModelLayer = (
+  modelId: LocalModelId,
   backend: 'wasm' | 'webgpu' = 'wasm',
   onProgress?: (progress: LayaProgress) => void
-): Layer.Layer<DecisionClient, DecisionError> => {
-  return Layer.effect(
-    DecisionClient,
+): Layer.Layer<DecisionModel.DecisionModel, AiError.AiError> =>
+  Layer.effect(
+    DecisionModel.DecisionModel,
     Effect.gen(function* () {
-      const model = yield* Effect.acquireRelease(
-        Effect.tryPromise({
-          try: async (signal) => {
-            const { loadLaya } = await import('./laya');
-
-            return loadLaya(onProgress, signal, backend, true);
-          },
-          catch: (cause) =>
-            new DecisionError({
-              message:
-                '本地 fp16 模型加载失败，请先下载模型，或检查后端兼容性与内存。',
-              cause,
-            }),
+      const worker = yield* Effect.acquireRelease(
+        Effect.try({
+          try: createLayaWorker,
+          catch: (cause) => modelError('load', cause),
         }),
-        (model) => Effect.promise(() => model.dispose())
+        (worker) => Effect.sync(() => worker.dispose())
       );
+      yield* Effect.tryPromise({
+        try: (signal) =>
+          worker.load(backend, signal, onProgress, true, modelId),
+        catch: (cause) => modelError('load', cause),
+      });
 
-      return DecisionClient.of({
-        request: (payload) =>
-          Effect.tryPromise({
-            try: () => model.request(payload),
-            catch: (cause) =>
-              new DecisionError({
-                message:
-                  '本地 fp16 判定失败，可能存在后端兼容问题或输入超长。可尝试 WASM 或改用 API。',
-                cause,
-              }),
+      return yield* DecisionModel.make({
+        decide: (options) =>
+          Effect.gen(function* () {
+            const payload = yield* providerOptionsToRequest(options);
+            const answers = yield* Effect.tryPromise({
+              try: (signal) => worker.request(payload, signal),
+              catch: (cause) => modelError('decide', cause),
+            });
+
+            return choiceAnswersToProvider(payload.questions, answers);
           }),
       });
     })
   );
-};
+
+export const LayaDecisionModelLayer = (
+  backend: 'wasm' | 'webgpu' = 'wasm',
+  onProgress?: (progress: LayaProgress) => void
+) =>
+  LocalDecisionModelLayer(
+    'onnx-community/laya-multilingual-ONNX',
+    backend,
+    onProgress
+  );

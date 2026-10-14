@@ -1,5 +1,5 @@
-import { Show } from '@solidjs/web';
 import { Option } from 'effect';
+import { Show } from 'solid-js';
 import type { useGame } from '../lib/game';
 
 export function Composer(props: { game: ReturnType<typeof useGame> }) {

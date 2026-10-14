@@ -1,4 +1,4 @@
-import { Option, Schema } from 'effect';
+import { Option, Redacted, Schema } from 'effect';
 
 export const NonBlankString = Schema.String.check(
   Schema.makeFilter((value) => value.trim().length > 0)
@@ -7,20 +7,54 @@ export const Confidence = Schema.Number.check(
   Schema.isFinite(),
   Schema.isBetween({ minimum: 0, maximum: 1 })
 );
-export const Puzzle = Schema.Struct({
+export const JudgmentPoint = Schema.Struct({
+  id: NonBlankString,
+  description: NonBlankString,
+});
+export type JudgmentPoint = typeof JudgmentPoint.Type;
+export const PuzzleDefinition = Schema.Struct({
   id: NonBlankString,
   title: NonBlankString,
   surface: NonBlankString,
   truth: NonBlankString,
-  keyFacts: Schema.Array(NonBlankString).check(Schema.isMinLength(1)),
+  judgmentPoints: Schema.Array(JudgmentPoint)
+    .check(Schema.isMinLength(1))
+    .check(
+      Schema.makeFilter((points) =>
+        points.every(
+          (point, index) =>
+            points.findIndex((candidate) => candidate.id === point.id) === index
+        )
+      )
+    ),
 });
-export type Puzzle = typeof Puzzle.Type;
+export type PuzzleDefinition = typeof PuzzleDefinition.Type;
+export const Puzzle = PuzzleDefinition;
+export type Puzzle = PuzzleDefinition;
+export const PuzzleView = Schema.Struct({
+  id: NonBlankString,
+  title: NonBlankString,
+  surface: NonBlankString,
+});
+export type PuzzleView = typeof PuzzleView.Type;
+export const GameResult = Schema.Struct({
+  truth: NonBlankString,
+  reason: Schema.Literals(['solved', 'revealed']),
+});
+export type GameResult = typeof GameResult.Type;
+
+export const LocalModelId = Schema.Literals([
+  'onnx-community/laya-multilingual-ONNX',
+]);
+export type LocalModelId = typeof LocalModelId.Type;
 
 export const DecisionSettings = Schema.Struct({
   provider: Schema.optionalKey(Schema.Literals(['api', 'local'])),
   backend: Schema.optionalKey(Schema.Literals(['wasm', 'webgpu'])),
   apiUrl: Schema.String,
   apiKey: Schema.String,
+  apiModel: Schema.optionalKey(Schema.String),
+  modelId: Schema.optionalKey(Schema.String),
 });
 export type DecisionSettings = typeof DecisionSettings.Type;
 
@@ -39,6 +73,23 @@ export const RequestSettings = Schema.Struct({
   apiKey: Schema.Trim.check(Schema.isMinLength(1)),
 });
 export type RequestSettings = typeof RequestSettings.Type;
+
+export const DecisionConfiguration = Schema.Union([
+  Schema.Struct({
+    provider: Schema.Literal('api'),
+    url: RequestSettings.fields.apiUrl,
+    model: Schema.Trim.check(Schema.isMinLength(1)),
+    key: Schema.Redacted(Schema.String).check(
+      Schema.makeFilter((value) => Redacted.value(value).trim().length > 0)
+    ),
+  }),
+  Schema.Struct({
+    provider: Schema.Literal('local'),
+    modelId: LocalModelId,
+    backend: Schema.Literals(['wasm', 'webgpu']),
+  }),
+]);
+export type DecisionConfiguration = typeof DecisionConfiguration.Type;
 
 export const GameMode = Schema.Literals(['question', 'solve']);
 export type GameMode = typeof GameMode.Type;

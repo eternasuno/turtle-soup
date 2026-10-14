@@ -8,7 +8,11 @@
     "./game": "./src/game.ts",
     "./session": "./src/session.ts",
     "./settings": "./src/settings.ts",
-    "./decision": "./src/decision.ts"
+    "./decision": "./src/decision.ts",
+    "./decision-schema": "./src/decision-schema.ts",
+    "./decision-error": "./src/decision-error.ts",
+    "./decision-provider": "./src/decision-provider.ts",
+    "./model-management": "./src/model-management.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
@@ -20,6 +24,7 @@
     "vitest": "catalog:"
   },
   "dependencies": {
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "@effect/ai-typesafe": "catalog:"
   }
 }

@@ -1,10 +1,12 @@
 import { expect, it } from '@effect/vitest';
-import { Effect, Layer, Option } from 'effect';
+import { Effect, Layer, Option, Redacted, Result } from 'effect';
 import { vi } from 'vitest';
-import { SettingsError } from '../src/decision-client';
 import {
   loadInitialSettings,
   loadSettings,
+  normalizeSettings,
+  resolveDecisionConfiguration,
+  SettingsError,
   SettingsReadError,
   SettingsStorage,
   SettingsWriteError,
@@ -168,4 +170,138 @@ it.effect('saves local settings without API credentials', () =>
     expect(valid).toEqual(settings);
     expect(JSON.parse(write.mock.calls[0]![0]!)).toEqual(settings);
   })
+);
+
+it.effect.each([
+  { draft: emptySettings, valid: false },
+  { draft: { apiUrl: 'ftp://example.com', apiKey: 'secret' }, valid: false },
+  {
+    draft: { apiUrl: 'https://example.com', apiKey: 'secret', apiModel: '' },
+    valid: false,
+  },
+  { draft: { apiUrl: 'https://example.com', apiKey: 'secret' }, valid: true },
+  { draft: { provider: 'local' as const, ...emptySettings }, valid: true },
+])(
+  'resolves loaded initial drafts for configuration readiness %#',
+  ({ draft, valid }) =>
+    Effect.gen(function* () {
+      const loaded = yield* loadInitialSettings();
+      expect(loaded).toEqual(draft);
+      const result = yield* resolveDecisionConfiguration(loaded).pipe(
+        Effect.result
+      );
+      expect(Result.isSuccess(result)).toBe(valid);
+    }).pipe(
+      Effect.provide(
+        storage(Effect.succeed(Option.some(JSON.stringify(draft))))
+      )
+    )
+);
+
+it.effect('resolves defaults only for effective configurations', () =>
+  Effect.gen(function* () {
+    const api = yield* resolveDecisionConfiguration({
+      apiUrl: ' https://example.com ',
+      apiKey: ' secret ',
+    });
+    expect(api.provider).toBe('api');
+    if (api.provider === 'api') {
+      expect(api.url).toBe('https://example.com');
+      expect(api.model).toBe('jev-latest');
+      expect(Redacted.value(api.key)).toBe('secret');
+      expect(String(api.key)).not.toContain('secret');
+    }
+
+    expect(
+      yield* resolveDecisionConfiguration({
+        provider: 'local',
+        ...emptySettings,
+      })
+    ).toEqual({
+      provider: 'local',
+      modelId: 'onnx-community/laya-multilingual-ONNX',
+      backend: 'wasm',
+    });
+  })
+);
+
+it.effect.each(['onnx-community/laya-multilingual-ONNX'])(
+  'preserves %s and backend fields through save and load',
+  (modelId) =>
+    Effect.gen(function* () {
+      const draft = {
+        provider: 'api' as const,
+        apiUrl: ' https://example.com ',
+        apiKey: ' secret ',
+        apiModel: ' custom-model ',
+        modelId: ` ${modelId} `,
+        backend: 'webgpu' as const,
+      };
+      let stored = '';
+      const layer = Layer.succeed(SettingsStorage, {
+        read: Effect.sync(() => Option.some(stored)),
+        write: (value) =>
+          Effect.sync(() => {
+            stored = value;
+          }),
+      });
+      const saved = yield* saveSettings(draft).pipe(Effect.provide(layer));
+      expect(saved).toEqual({
+        ...draft,
+        apiUrl: 'https://example.com',
+        apiKey: 'secret',
+        apiModel: 'custom-model',
+        modelId,
+      });
+      expect(yield* loadSettings().pipe(Effect.provide(layer))).toEqual(saved);
+      expect(yield* normalizeSettings({ ...saved, provider: 'local' })).toEqual(
+        {
+          ...saved,
+          provider: 'local',
+        }
+      );
+      expect(
+        yield* resolveDecisionConfiguration({ ...saved, provider: 'local' })
+      ).toEqual({
+        provider: 'local',
+        modelId: saved.modelId,
+        backend: 'webgpu',
+      });
+    })
+);
+
+it.effect.each([
+  { apiUrl: 'https://example.com', apiKey: 'secret', apiModel: ' ' },
+  { provider: 'local' as const, ...emptySettings, modelId: 'unknown' },
+  { provider: 'local' as const, ...emptySettings, modelId: '' },
+])('rejects invalid model configurations %#', (draft) =>
+  Effect.gen(function* () {
+    expect(
+      yield* resolveDecisionConfiguration(draft).pipe(Effect.flip)
+    ).toBeInstanceOf(SettingsError);
+  })
+);
+
+it.effect.each(['Manav2op/verdict-small', 'onnx-community/d1-omni-600M-ONNX'])(
+  'loads legacy %s drafts but rejects saving and running them',
+  (modelId) =>
+    Effect.gen(function* () {
+      const draft = { provider: 'local' as const, ...emptySettings, modelId };
+      let writes = 0;
+      const layer = Layer.succeed(SettingsStorage, {
+        read: Effect.succeed(Option.some(JSON.stringify(draft))),
+        write: () =>
+          Effect.sync(() => {
+            writes++;
+          }),
+      });
+      expect(yield* loadSettings().pipe(Effect.provide(layer))).toEqual(draft);
+      expect(
+        (yield* resolveDecisionConfiguration(draft).pipe(Effect.flip)).message
+      ).toContain('不支持');
+      expect(
+        yield* saveSettings(draft).pipe(Effect.provide(layer), Effect.result)
+      ).toMatchObject({ _tag: 'Failure' });
+      expect(writes).toBe(0);
+    })
 );

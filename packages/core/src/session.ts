@@ -9,11 +9,24 @@ import {
   Scope,
   SubscriptionRef,
 } from 'effect';
-import { selectPuzzle, submitQuestion, submitSolution } from './game';
-import { GameMode, GameStatus, Message, Puzzle } from './types';
+import {
+  puzzleView,
+  selectPuzzle,
+  submitQuestion,
+  submitSolution,
+} from './game';
+import {
+  GameMode,
+  GameResult,
+  GameStatus,
+  Message,
+  type Puzzle,
+  PuzzleView,
+} from './types';
 
 export const SessionState = Schema.Struct({
-  puzzle: Puzzle,
+  puzzle: PuzzleView,
+  result: Schema.Option(GameResult),
   mode: GameMode,
   input: Schema.String,
   loading: Schema.Boolean,
@@ -25,9 +38,12 @@ export type SessionSnapshot = typeof SessionState.Type;
 
 type PendingRequest = {
   readonly token: object;
+  readonly snapshot: SessionSnapshot;
   readonly fiber: Option.Option<Fiber.Fiber<void>>;
 };
 interface SessionOwner {
+  readonly puzzles: ReadonlyArray<Puzzle>;
+  readonly puzzle: Ref.Ref<Puzzle>;
   readonly scope: Scope.Closeable;
   readonly state: SubscriptionRef.SubscriptionRef<SessionSnapshot>;
   readonly active: Ref.Ref<Option.Option<PendingRequest>>;
@@ -35,7 +51,8 @@ interface SessionOwner {
 }
 
 const initial = (puzzle: Puzzle): SessionSnapshot => ({
-  puzzle,
+  puzzle: puzzleView(puzzle),
+  result: Option.none(),
   mode: 'question',
   input: '',
   loading: false,
@@ -58,7 +75,16 @@ const current = (owner: SessionOwner, token: object) =>
 const cancelRequest = (owner: SessionOwner) =>
   Effect.gen(function* () {
     const previous = yield* Ref.getAndSet(owner.active, Option.none());
-    yield* update(owner, { loading: false, error: Option.none() });
+    yield* update(owner, {
+      loading: false,
+      error: Option.none(),
+      ...(Option.isSome(previous)
+        ? {
+            input: previous.value.snapshot.input,
+            messages: previous.value.snapshot.messages,
+          }
+        : {}),
+    });
     if (Option.isSome(previous) && Option.isSome(previous.value.fiber)) {
       yield* Effect.forkIn(
         Fiber.interrupt(previous.value.fiber.value),
@@ -74,11 +100,12 @@ const requestTask = (
   owner: SessionOwner,
   token: object,
   snapshot: SessionSnapshot,
+  puzzle: Puzzle,
   content: string
 ) => {
   const request = Match.value(snapshot.mode).pipe(
-    Match.when('question', () => submitQuestion(snapshot.puzzle, content)),
-    Match.when('solve', () => submitSolution(snapshot.puzzle, content)),
+    Match.when('question', () => submitQuestion(puzzle, content)),
+    Match.when('solve', () => submitSolution(puzzle, content)),
     Match.exhaustive
   );
   return request.pipe(
@@ -86,7 +113,11 @@ const requestTask = (
       onFailure: (error) =>
         Effect.gen(function* () {
           if (yield* current(owner, token))
-            yield* update(owner, { error: Option.some(error.message) });
+            yield* update(owner, {
+              error: Option.some(error.message),
+              input: snapshot.input,
+              messages: snapshot.messages,
+            });
         }),
       onSuccess: (result) =>
         Effect.gen(function* () {
@@ -97,8 +128,14 @@ const requestTask = (
               { role: 'user', mode: snapshot.mode, content },
               { role: 'host', content: result.content },
             ],
-            input: '',
             status: result.status,
+            result:
+              result.status === 'solved'
+                ? Option.some({
+                    truth: puzzle.truth,
+                    reason: 'solved' as const,
+                  })
+                : Option.none(),
           });
         }),
     }),
@@ -113,6 +150,12 @@ const requestTask = (
   );
 };
 
+const copyPuzzleBank = (puzzles: ReadonlyArray<Puzzle>) =>
+  Arr.map(puzzles, (puzzle) => ({
+    ...puzzle,
+    judgmentPoints: Arr.map(puzzle.judgmentPoints, (point) => ({ ...point })),
+  }));
+
 const submitRequest = (owner: SessionOwner) =>
   Effect.gen(function* () {
     const snapshot = yield* SubscriptionRef.get(owner.state);
@@ -125,11 +168,23 @@ const submitRequest = (owner: SessionOwner) =>
     ) {
       return Option.none<Fiber.Fiber<void>>();
     }
+    const puzzle = yield* Ref.get(owner.puzzle);
     const token = {};
-    yield* Ref.set(owner.active, Option.some({ token, fiber: Option.none() }));
-    yield* update(owner, { loading: true, error: Option.none() });
+    yield* Ref.set(
+      owner.active,
+      Option.some({ token, snapshot, fiber: Option.none() })
+    );
+    yield* update(owner, {
+      loading: true,
+      error: Option.none(),
+      input: '',
+      messages: [
+        ...snapshot.messages,
+        { role: 'user', mode: snapshot.mode, content },
+      ],
+    });
     const fiber = yield* Effect.forkIn(
-      requestTask(owner, token, snapshot, content),
+      requestTask(owner, token, snapshot, puzzle, content),
       owner.scope,
       {
         startImmediately: true,
@@ -138,7 +193,7 @@ const submitRequest = (owner: SessionOwner) =>
     if (yield* current(owner, token)) {
       yield* Ref.set(
         owner.active,
-        Option.some({ token, fiber: Option.some(fiber) })
+        Option.some({ token, snapshot, fiber: Option.some(fiber) })
       );
     }
     return Option.some(fiber);
@@ -147,13 +202,16 @@ const submitRequest = (owner: SessionOwner) =>
 export const makeSession = Effect.fnUntraced(function* (
   puzzles: ReadonlyArray<Puzzle>
 ) {
-  const bank = Arr.map(puzzles, (puzzle) => ({
-    ...puzzle,
-    keyFacts: Arr.copy(puzzle.keyFacts),
-  }));
+  const bank = copyPuzzleBank(puzzles);
+  if (new Set(Arr.map(bank, (puzzle) => puzzle.id)).size !== bank.length) {
+    return yield* Effect.die(new Error('Puzzle ids must be unique'));
+  }
+  const puzzle = yield* selectPuzzle(bank);
   const owner: SessionOwner = {
+    puzzles: bank,
     scope: yield* Scope.make(),
-    state: yield* SubscriptionRef.make(initial(yield* selectPuzzle(bank))),
+    puzzle: yield* Ref.make(puzzle),
+    state: yield* SubscriptionRef.make(initial(puzzle)),
     active: yield* Ref.make(Option.none<PendingRequest>()),
     closed: yield* Ref.make(false),
   };
@@ -161,8 +219,7 @@ export const makeSession = Effect.fnUntraced(function* (
   yield* Effect.addFinalizer((exit) =>
     Effect.gen(function* () {
       yield* Ref.set(owner.closed, true);
-      yield* Ref.set(owner.active, Option.none());
-      yield* update(owner, { loading: false, error: Option.none() });
+      yield* cancel;
       yield* Scope.close(owner.scope, exit);
     })
   );
@@ -172,11 +229,21 @@ export const makeSession = Effect.fnUntraced(function* (
     setInput: (input: string) => update(owner, { input }),
     setMode: (mode: GameMode) => update(owner, { mode }),
     cancel,
-    reveal: cancel.pipe(Effect.andThen(update(owner, { status: 'revealed' }))),
+    reveal: Effect.gen(function* () {
+      yield* cancel;
+      const snapshot = yield* SubscriptionRef.get(owner.state);
+      if (snapshot.status === 'solved') return;
+      const puzzle = yield* Ref.get(owner.puzzle);
+      yield* update(owner, {
+        status: 'revealed',
+        result: Option.some({ truth: puzzle.truth, reason: 'revealed' }),
+      });
+    }),
     startNewGame: Effect.gen(function* () {
       yield* cancel;
       const previous = yield* SubscriptionRef.get(owner.state);
       const puzzle = yield* selectPuzzle(bank, Option.some(previous.puzzle.id));
+      yield* Ref.set(owner.puzzle, puzzle);
       yield* SubscriptionRef.set(owner.state, initial(puzzle));
     }),
     submit: submitRequest(owner),

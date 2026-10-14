@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
-import solid from '@solidjs/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
+import solid from 'vite-plugin-solid';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -12,7 +12,7 @@ export default defineConfig({
     environment: 'node',
     alias: {
       'solid-js': fileURLToPath(
-        new URL('./node_modules/solid-js/dist/solid.js', import.meta.url)
+        new URL('./node_modules/solid-js/dist/dev.js', import.meta.url)
       ),
     },
   },

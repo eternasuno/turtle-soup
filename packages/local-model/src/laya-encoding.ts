@@ -3,7 +3,7 @@ import {
   ChoiceAnswer,
   type ChoiceAnswer as ChoiceAnswerType,
   type DecisionRequest as DecisionRequestType,
-} from '@turtle-soup/core/decision';
+} from '@turtle-soup/core/decision-schema';
 import { Schema } from 'effect';
 
 export type LayaConfig = {
@@ -187,7 +187,7 @@ function decodeAnswers(
   )
     throw new Error('Laya returned malformed logits.');
   const temperatures = config.temperature_by_options ?? {};
-  const result: Record<string, ChoiceAnswerType> = {};
+  const result: Record<string, ChoiceAnswerType> = Object.create(null);
   entries.forEach(([id, question], index) => {
     const choices = Object.keys(question.criteria);
     const temperature = clampTemp(
@@ -206,6 +206,9 @@ function decodeAnswers(
       type: 'choice',
       choice: choices[best],
       confidence: exps[best]! / sum,
+      probabilities: Object.fromEntries(
+        choices.map((choice, i) => [choice, exps[i]! / sum])
+      ),
     });
   });
   return result;

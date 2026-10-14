@@ -1,8 +1,8 @@
 import { expect, it } from '@effect/vitest';
 import { Effect, Layer, Option, Random } from 'effect';
-import type { ChoiceAnswer } from '../src/decision';
-import { DecisionClient, DecisionError } from '../src/decision';
+import { AiError, DecisionModel } from 'effect/ai';
 import {
+  puzzleView,
   selectPuzzle,
   solutionStatus,
   submitQuestion,
@@ -15,12 +15,43 @@ const puzzles: Puzzle[] = ['first', 'second', 'third'].map((id) => ({
   title: id,
   surface: '谜面',
   truth: '隐藏谜底',
-  keyFacts: ['隐藏事实'],
+  judgmentPoints: [{ id: 'p1', description: '隐藏事实' }],
 }));
-const fake = (answers: Record<string, ChoiceAnswer>) =>
-  Layer.succeed(DecisionClient, {
-    request: () => Effect.succeed(answers),
+it('projects only player-visible puzzle fields', () => {
+  expect(puzzleView(puzzles[0]!)).toEqual({
+    id: 'first',
+    title: 'first',
+    surface: '谜面',
   });
+});
+
+const fake = (answers: Record<string, string>) =>
+  Layer.effect(
+    DecisionModel.DecisionModel,
+    DecisionModel.make({
+      decide: ({ decisions }) =>
+        Effect.succeed({
+          answers: Object.fromEntries(
+            Object.entries(decisions).map(([id, decision]) => {
+              const label = answers[id]!;
+              return [
+                id,
+                {
+                  _tag: 'Classify',
+                  label,
+                  probabilities: Object.fromEntries(
+                    Object.keys(
+                      decision.criteria as Record<string, unknown>
+                    ).map((choice) => [choice, choice === label ? 1 : 0])
+                  ),
+                },
+              ];
+            })
+          ),
+          usage: { inputTokens: undefined, outputTokens: undefined },
+        }),
+    })
+  );
 
 it.effect.each(['seed-a', 'seed-b', 'seed-c'])(
   'excludes previous puzzle with seed %s',
@@ -74,7 +105,7 @@ it.effect.each([
 ] as const)('maps %s to player-visible %s', ([choice, content]) =>
   Effect.gen(function* () {
     const result = yield* submitQuestion(puzzles[0]!, '问题').pipe(
-      Effect.provide(fake({ answer: { type: 'choice', choice } }))
+      Effect.provide(fake({ answer: choice }))
     );
     expect(result).toEqual({ content, status: 'playing' });
   })
@@ -89,36 +120,40 @@ it.effect.each([
   ([first, second, content, status]) =>
     Effect.gen(function* () {
       const result = yield* submitSolution(
-        { ...puzzles[0]!, keyFacts: ['秘密甲', '秘密乙'] },
+        {
+          ...puzzles[0]!,
+          judgmentPoints: [
+            { id: 'a', description: '秘密甲' },
+            { id: 'b', description: '秘密乙' },
+          ],
+        },
         '答案'
-      ).pipe(
-        Effect.provide(
-          fake({
-            fact_0: { type: 'choice', choice: first },
-            fact_1: { type: 'choice', choice: second },
-          })
-        )
-      );
+      ).pipe(Effect.provide(fake({ a: first, b: second })));
       expect(result).toEqual({ content, status });
       expect(JSON.stringify(result)).not.toContain('秘密');
       expect(JSON.stringify(result)).not.toContain('隐藏谜底');
     })
 );
 
-it.effect('passes puzzle and input to the service and preserves failure', () =>
+it.effect('maps model failures to the fixed player-visible error', () =>
   Effect.gen(function* () {
-    const failure = new DecisionError({ message: 'failed', cause: 'network' });
-    const layer = Layer.succeed(DecisionClient, {
-      request: (payload) => {
-        expect(payload.state).toContain('隐藏谜底');
-        expect(payload.state).toContain('PLAYER QUESTION:\n玩家输入');
-        return Effect.fail(failure);
-      },
-    });
+    const layer = Layer.effect(
+      DecisionModel.DecisionModel,
+      DecisionModel.make({
+        decide: () =>
+          Effect.fail(
+            AiError.make({
+              module: 'test',
+              method: 'decide',
+              reason: new AiError.UnknownError({ description: 'failed' }),
+            })
+          ),
+      })
+    );
     const error = yield* submitQuestion(puzzles[0]!, '玩家输入').pipe(
       Effect.provide(layer),
       Effect.flip
     );
-    expect(error).toBe(failure);
+    expect(error.message).toBe('判定失败，请重试或检查模型配置。');
   })
 );
