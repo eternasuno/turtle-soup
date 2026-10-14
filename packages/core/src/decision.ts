@@ -1,7 +1,11 @@
 import { Array as Arr, Effect, Option, Schema } from 'effect';
 import { Decision, DecisionModel } from 'effect/ai';
 import type * as AiError from 'effect/ai/AiError';
-import { DECISION_ERROR_MESSAGE, DecisionError } from './decision-client';
+import {
+  DECISION_ERROR_MESSAGE,
+  DecisionError,
+  DecisionFailureReason,
+} from './decision-error';
 
 import { solutionStatus } from './solution';
 import {
@@ -15,31 +19,12 @@ const mapDecisionError = Effect.mapError(
   (cause: AiError.AiError) =>
     new DecisionError({
       message:
-        cause.module === 'LayaDecisionModel' &&
-        'description' in cause.reason &&
-        typeof cause.reason.description === 'string'
-          ? `本地模型判定失败：${cause.reason.description.replace(/https?:\/\/\S+/g, '[URL]').slice(0, 1000)}`
+        cause.reason instanceof DecisionFailureReason
+          ? cause.reason.userMessage
           : DECISION_ERROR_MESSAGE,
       cause,
     })
 );
-
-export {
-  DECISION_ERROR_MESSAGE,
-  DecisionClient,
-  DecisionClientLayer,
-  DecisionClientLive,
-  DecisionError,
-  normalizeSettings,
-  SettingsError,
-  validateSettings,
-} from './decision-client';
-export {
-  ChoiceAnswer,
-  ChoiceQuestion,
-  DecisionRequest,
-  DecisionResponse,
-} from './decision-schema';
 
 export class InvalidPuzzleError extends Schema.TaggedError<InvalidPuzzleError>()(
   'InvalidPuzzleError',

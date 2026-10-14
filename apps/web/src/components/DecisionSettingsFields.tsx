@@ -1,9 +1,6 @@
-import {
-  type LocalModelDefinition,
-  localModelDefinitions,
-} from '@turtle-soup/core/model-management';
+import type { LocalModelDefinition } from '@turtle-soup/core/model-management';
 import type { DecisionSettings } from '@turtle-soup/core/types';
-import { For, type JSX, Show } from 'solid-js';
+import { type JSX, Show } from 'solid-js';
 
 export function ApiSettings(props: {
   settings: DecisionSettings;
@@ -72,8 +69,6 @@ export function LocalSettings(props: {
   usingSavedModel: boolean;
   deleting: boolean;
   selected: boolean;
-  modelRef: (element: HTMLSelectElement) => void;
-  onModelChange: () => void;
   onBackendChange: (backend: 'wasm' | 'webgpu') => void;
   onAction: () => void;
   onRemove: () => void;
@@ -94,21 +89,9 @@ export function LocalSettings(props: {
       <label class="mt-4 block text-sm font-semibold" for="local-model">
         本地模型
       </label>
-      <select
-        id="local-model"
-        class="select mt-2 w-full"
-        ref={props.modelRef}
-        value={props.model.id}
-        onChange={props.onModelChange}
-      >
-        <For each={localModelDefinitions}>
-          {(model) => (
-            <option value={model.id}>
-              {model.name} · {model.precision}
-            </option>
-          )}
-        </For>
-      </select>
+      <p class="mt-2 text-sm">
+        {props.model.name} · {props.model.precision}
+      </p>
       <label class="mt-4 block text-sm font-semibold" for="local-backend">
         推理后端
       </label>
@@ -127,21 +110,13 @@ export function LocalSettings(props: {
       </select>
       <div class="mt-4 rounded-lg bg-base-200 p-3 text-sm">
         <p class="font-semibold">
-          {props.model.name} · {props.model.precisionByBackend[props.backend]}
+          {props.model.name} · {props.model.precision}
         </p>
         <p class="mt-1 text-xs">精度：{props.model.precision}</p>
         <p class="mt-1 text-xs">
           许可证：
-          {props.model.license === 'lfm1.0'
-            ? 'LFM Open License v1.0'
-            : props.model.license}
+          {props.model.license}
         </p>
-        <Show when={props.model.license === 'lfm1.0'}>
-          <p class="mt-1 text-xs">
-            仅文本推理，不支持音频或其他模态。商业使用存在收入门槛（commercial
-            threshold），请先确认 LFM Open License v1.0 条款。
-          </p>
-        </Show>
         <p class="mt-1 text-xs leading-relaxed text-base-content/70">
           首次下载所选后端的模型文件，之后会缓存于此设备。模型在本地运行，不会发送对话内容到服务器；回答准确性可能低于在线
           API。

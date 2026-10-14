@@ -2,6 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { completeCache, mocks, payload, setup } from './laya-mocks';
 
 const { deleteLayaCache, isLayaCached, loadLaya } = await import('../src/laya');
+const { loadModel } = await import('../src/model-loader');
 
 it('deletes only Laya cache entries, including incomplete downloads', async () => {
   const prefix =
@@ -168,6 +169,38 @@ it('rejects cache-only loading after cache deletion without fetching files', asy
   );
   expect(mocks.config).not.toHaveBeenCalled();
   expect(mocks.model).not.toHaveBeenCalled();
+});
+
+it('delegates cache-only model loading to one underlying cache inspection', async () => {
+  setup();
+  completeCache();
+  const model = await loadModel(
+    'onnx-community/laya-multilingual-ONNX',
+    'wasm',
+    true
+  );
+
+  expect(mocks.modelFiles).toHaveBeenCalledTimes(1);
+  expect(mocks.model).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({ device: 'wasm', local_files_only: true })
+  );
+  await model.dispose();
+});
+
+it('forces WASM for model downloads even when WebGPU is selected', async () => {
+  setup();
+  const model = await loadModel(
+    'onnx-community/laya-multilingual-ONNX',
+    'webgpu',
+    false
+  );
+
+  expect(mocks.model).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({ device: 'wasm', local_files_only: false })
+  );
+  await model.dispose();
 });
 
 it('selects WebGPU with fp16 and cache-only loading for separate testing', async () => {

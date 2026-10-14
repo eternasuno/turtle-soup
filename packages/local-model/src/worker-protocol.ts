@@ -1,4 +1,7 @@
-import { ChoiceAnswer, DecisionRequest } from '@turtle-soup/core/decision';
+import {
+  ChoiceAnswer,
+  DecisionRequest,
+} from '@turtle-soup/core/decision-schema';
 import { LocalModelId } from '@turtle-soup/core/types';
 import { Schema } from 'effect';
 

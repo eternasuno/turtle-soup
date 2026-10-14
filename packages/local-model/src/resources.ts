@@ -26,14 +26,10 @@ export const LocalModelResourcesLive = Layer.succeed(LocalModelResources, {
       Effect.andThen(
         Effect.tryPromise({
           try: async () => {
-            const { isModelCached } = await import('./model-cache');
+            const { isLayaCached } = await import('./laya');
 
             return {
-              tag: (await isModelCached(
-                Schema.decodeUnknownSync(LocalModelId)(modelId)
-              ))
-                ? 'complete'
-                : 'missing',
+              tag: (await isLayaCached()) ? 'complete' : 'missing',
             } as const;
           },
           catch: resourceError,
@@ -67,10 +63,8 @@ export const LocalModelResourcesLive = Layer.succeed(LocalModelResources, {
       Effect.andThen(
         Effect.tryPromise({
           try: async () => {
-            const { deleteModelCache } = await import('./model-cache');
-            await deleteModelCache(
-              Schema.decodeUnknownSync(LocalModelId)(modelId)
-            );
+            const { deleteLayaCache } = await import('./laya');
+            await deleteLayaCache();
           },
           catch: resourceError,
         })

@@ -9,7 +9,7 @@ import {
   type ChoiceAnswer as ChoiceAnswerType,
   DecisionRequest,
   type DecisionRequest as DecisionRequestType,
-} from '@turtle-soup/core/decision';
+} from '@turtle-soup/core/decision-schema';
 import { Schema } from 'effect';
 import {
   type LayaConfig,

@@ -1,13 +1,14 @@
-import { Effect, Layer, Schema } from 'effect';
+import { TypeSafeClient, TypeSafeDecisionModel } from '@effect/ai-typesafe';
+import { Effect, Layer, Option, Schema, Scope } from 'effect';
 import { AiError, DecisionModel } from 'effect/ai';
-import { FetchHttpClient } from 'effect/http';
-import { DecisionClient, DecisionClientLayer } from './decision-client';
+import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/http';
 import { type ChoiceAnswer, DecisionRequest } from './decision-schema';
+import { resolveDecisionConfiguration, SettingsError } from './settings';
 import type { DecisionSettings } from './types';
 
 const aiError = (
   reason: AiError.UnknownError | AiError.UnsupportedSchemaError
-) => AiError.make({ module: 'JevDecisionModel', method: 'decide', reason });
+) => AiError.make({ module: 'DecisionModel', method: 'decide', reason });
 
 export const providerOptionsToRequest = (
   options: DecisionModel.ProviderOptions,
@@ -72,38 +73,71 @@ export const choiceAnswersToProvider = (
   usage: { inputTokens: undefined, outputTokens: undefined },
 });
 
-const jevDecisionModel = (model = 'jev-latest') =>
-  Layer.effect(
-    DecisionModel.DecisionModel,
-    Effect.gen(function* () {
-      const client = yield* DecisionClient;
+const timeoutFailure = (cause: unknown) =>
+  Effect.fail(aiError(Object.assign(new AiError.UnknownError({}), { cause })));
 
-      return yield* DecisionModel.make({
-        decide: (options) =>
-          providerOptionsToRequest(options, model).pipe(
-            Effect.flatMap((payload) =>
-              client.request(payload).pipe(
-                Effect.map((answers) =>
-                  choiceAnswersToProvider(payload.questions, answers)
-                ),
-                Effect.mapError((cause) =>
-                  aiError(
-                    Object.assign(new AiError.UnknownError({}), { cause })
-                  )
-                )
+const requestPolicyLayer = Layer.effect(
+  DecisionModel.DecisionModel,
+  Effect.gen(function* () {
+    const model = yield* DecisionModel.DecisionModel;
+
+    const configured: DecisionModel.DecisionModel = {
+      ...model,
+      decide: (definition, options) =>
+        model.decide(definition, options).pipe(
+          Effect.scoped,
+          Effect.provideService(HttpClient.TracerPropagationEnabled, false),
+          Effect.provideService(FetchHttpClient.RequestInit, {
+            credentials: 'omit',
+            redirect: 'error',
+          }),
+          Effect.timeout(30_000),
+          Effect.catchTag('TimeoutError', timeoutFailure)
+        ),
+    };
+
+    return configured;
+  })
+);
+
+export const DecisionModelLayer = (settings: DecisionSettings) =>
+  Layer.unwrap(
+    Effect.gen(function* () {
+      const valid = yield* resolveDecisionConfiguration(settings);
+      if (valid.provider !== 'api') {
+        return yield* Effect.fail(
+          new SettingsError({ message: 'API 客户端需要 API 配置。' })
+        );
+      }
+
+      const httpClient = yield* HttpClient.HttpClient;
+      const scopedClient = HttpClient.makeWith(
+        (request) =>
+          Effect.flatMap(Effect.serviceOption(Scope.Scope), (scope) =>
+            HttpClient.withScope(httpClient)
+              .postprocess(request)
+              .pipe(
+                Effect.provideService(Scope.Scope, Option.getOrThrow(scope))
               )
-            )
           ),
+        httpClient.preprocess
+      );
+      const clientLayer = TypeSafeClient.layer({
+        apiKey: valid.key,
+        transformClient: HttpClient.mapRequest(
+          HttpClientRequest.setUrl(valid.url)
+        ),
       });
+      const modelLayer = TypeSafeDecisionModel.layer({
+        model: valid.model,
+      }).pipe(
+        Layer.provide(clientLayer),
+        Layer.provide(Layer.succeed(HttpClient.HttpClient, scopedClient))
+      );
+
+      return requestPolicyLayer.pipe(Layer.provide(modelLayer));
     })
   );
 
-export const JevDecisionModel = jevDecisionModel();
-
-export const JevDecisionModelLayer = (settings: DecisionSettings) =>
-  jevDecisionModel(settings.apiModel?.trim()).pipe(
-    Layer.provide(DecisionClientLayer(settings))
-  );
-
-export const JevDecisionModelLive = (settings: DecisionSettings) =>
-  JevDecisionModelLayer(settings).pipe(Layer.provide(FetchHttpClient.layer));
+export const DecisionModelLive = (settings: DecisionSettings) =>
+  DecisionModelLayer(settings).pipe(Layer.provide(FetchHttpClient.layer));

@@ -45,8 +45,6 @@ export type GameResult = typeof GameResult.Type;
 
 export const LocalModelId = Schema.Literals([
   'onnx-community/laya-multilingual-ONNX',
-  'Manav2op/verdict-small',
-  'onnx-community/d1-omni-600M-ONNX',
 ]);
 export type LocalModelId = typeof LocalModelId.Type;
 

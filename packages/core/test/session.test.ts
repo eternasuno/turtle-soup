@@ -115,7 +115,7 @@ it.effect('preserves retry input and resets every game field', () =>
         messages: [],
       });
       expect(failed.error).toEqual(
-        Option.some('Decision 请求失败，请检查 API URL、API Key 或网络状态。')
+        Option.some('判定失败，请重试或检查模型配置。')
       );
       const retry = yield* session.submit.pipe(
         Effect.provide(

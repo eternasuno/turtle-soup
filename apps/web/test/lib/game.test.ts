@@ -1,21 +1,42 @@
+import { DecisionError } from '@turtle-soup/core/decision-error';
 import {
-  type ChoiceAnswer,
-  DecisionClient,
-  DecisionError,
-} from '@turtle-soup/core/decision';
-import { JevDecisionModel } from '@turtle-soup/core/decision-provider';
+  choiceAnswersToProvider,
+  providerOptionsToRequest,
+} from '@turtle-soup/core/decision-provider';
+import type { ChoiceAnswer } from '@turtle-soup/core/decision-schema';
 import { Effect, Layer, Option } from 'effect';
+import { AiError, DecisionModel } from 'effect/ai';
 import { createRoot } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import puzzles from '../../src/data/puzzles.json';
 import { useGame } from '../../src/lib/game';
 
-const requestClient = vi.fn<DecisionClient['Service']['request']>();
-const transportLayer = Layer.succeed(
-  DecisionClient,
-  DecisionClient.of({ request: requestClient })
-);
-const clientLayer = JevDecisionModel.pipe(Layer.provide(transportLayer));
+const requestClient =
+  vi.fn<
+    (
+      payload: DecisionModel.ProviderOptions
+    ) => Effect.Effect<Record<string, ChoiceAnswer>, DecisionError>
+  >();
+const makeModel = DecisionModel.make({
+  decide: (options) =>
+    requestClient(options).pipe(
+      Effect.flatMap((answers) =>
+        providerOptionsToRequest(options).pipe(
+          Effect.map((payload) =>
+            choiceAnswersToProvider(payload.questions, answers)
+          )
+        )
+      ),
+      Effect.mapError((cause) =>
+        AiError.make({
+          module: 'TestModel',
+          method: 'decide',
+          reason: Object.assign(new AiError.UnknownError({}), { cause }),
+        })
+      )
+    ),
+});
+const clientLayer = Layer.effect(DecisionModel.DecisionModel, makeModel);
 const judgmentPoints = () =>
   puzzles.find((puzzle) => puzzle.id === game.puzzle().id)!.judgmentPoints;
 const answer = (choice: string): Record<string, ChoiceAnswer> => ({
@@ -148,14 +169,14 @@ it('solves and completely resets the next game', async () => {
 it('preserves input and game on failure and supports retry', async () => {
   requestClient
     .mockReturnValueOnce(
-      Effect.fail(new DecisionError({ message: '请求失败', cause: 'network' }))
+      Effect.fail(
+        new DecisionError({ message: 'network', cause: new Error('network') })
+      )
     )
-    .mockReturnValue(Effect.succeed(answer('yes')));
+    .mockReturnValueOnce(Effect.succeed(answer('yes')));
   enter();
   await game.submit();
-  expect(game.error()).toEqual(
-    Option.some('Decision 请求失败，请检查 API URL、API Key 或网络状态。')
-  );
+  expect(game.error()).toEqual(Option.some('判定失败，请重试或检查模型配置。'));
   expect(game.input()).toBe('问题');
   expect(game.messages()).toEqual([]);
   expect(game.loading()).toBe(false);
@@ -166,7 +187,7 @@ it('preserves input and game on failure and supports retry', async () => {
 });
 it('guards duplicate submissions synchronously before awaiting either submission', async () => {
   const request = pendingQuestion();
-  requestClient.mockReturnValue(request.effect);
+  requestClient.mockImplementation(() => request.effect);
   enter();
   const first = game.submit();
   const duplicate = game.submit();
@@ -178,7 +199,7 @@ it('guards duplicate submissions synchronously before awaiting either submission
 });
 it('reveal aborts requests, ignores late results and disables sending', async () => {
   const request = pendingQuestion();
-  requestClient.mockReturnValue(request.effect);
+  requestClient.mockImplementation(() => request.effect);
   enter();
   const pending = game.submit();
   await vi.waitFor(() => expect(request.signal()).toBeDefined());
@@ -199,8 +220,8 @@ it.each(['success', 'failure'] as const)(
     const old = pendingQuestion();
     const current = pendingQuestion();
     requestClient
-      .mockReturnValueOnce(Effect.uninterruptible(old.effect))
-      .mockReturnValueOnce(current.effect);
+      .mockImplementationOnce(() => Effect.uninterruptible(old.effect))
+      .mockImplementationOnce(() => current.effect);
     enter('旧问题');
     const first = game.submit();
     await vi.waitFor(() => expect(old.signal()).toBeDefined());
@@ -231,7 +252,7 @@ it.each(['success', 'failure'] as const)(
 );
 it('cleanup aborts a pending request without rejecting submit or mutating history', async () => {
   const request = pendingQuestion();
-  requestClient.mockReturnValue(request.effect);
+  requestClient.mockImplementation(() => request.effect);
   enter();
   const pending = game.submit();
   await vi.waitFor(() => expect(request.signal()).toBeDefined());
@@ -243,4 +264,25 @@ it('cleanup aborts a pending request without rejecting submit or mutating histor
     { role: 'user', mode: 'question', content: '问题' },
   ]);
   expect(game.error()).toEqual(Option.none());
+});
+
+it('shows invalid initial settings through the default client without fetching', async () => {
+  vi.stubGlobal('localStorage', { getItem: () => null });
+  const fetch = vi.fn();
+  vi.stubGlobal('fetch', fetch);
+  createRoot((cleanup) => {
+    dispose = cleanup;
+    game = useGame();
+  });
+  enter();
+  await expect(game.submit()).resolves.toBeUndefined();
+  await vi.waitFor(() =>
+    expect(game.error()).toEqual(
+      Option.some('判定失败，请重试或检查模型配置。')
+    )
+  );
+  expect(game.input()).toBe('问题');
+  expect(game.loading()).toBe(false);
+  expect(game.messages()).toEqual([]);
+  expect(fetch).not.toHaveBeenCalled();
 });

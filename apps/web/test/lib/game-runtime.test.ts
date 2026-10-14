@@ -1,18 +1,39 @@
+import { DecisionError } from '@turtle-soup/core/decision-error';
 import {
-  type ChoiceAnswer,
-  DecisionClient,
-  DecisionError,
-} from '@turtle-soup/core/decision';
-import { JevDecisionModel } from '@turtle-soup/core/decision-provider';
+  choiceAnswersToProvider,
+  providerOptionsToRequest,
+} from '@turtle-soup/core/decision-provider';
+import type { ChoiceAnswer } from '@turtle-soup/core/decision-schema';
 import { Effect, Layer, Option } from 'effect';
 import { AiError, DecisionModel } from 'effect/ai';
 import { createRoot } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useGame } from '../../src/lib/game';
 
-const requestClient = vi.fn<DecisionClient['Service']['request']>();
+const requestClient =
+  vi.fn<
+    (
+      payload: DecisionModel.ProviderOptions
+    ) => Effect.Effect<Record<string, ChoiceAnswer>, DecisionError>
+  >();
 const answer = (choice: string): Record<string, ChoiceAnswer> => ({
   answer: { type: 'choice', choice },
+});
+const makeModel = DecisionModel.make({
+  decide: (options) =>
+    Effect.gen(function* () {
+      const payload = yield* providerOptionsToRequest(options);
+      const answers = yield* requestClient(options).pipe(
+        Effect.mapError((cause) =>
+          AiError.make({
+            module: 'TestModel',
+            method: 'decide',
+            reason: Object.assign(new AiError.UnknownError({}), { cause }),
+          })
+        )
+      );
+      return choiceAnswersToProvider(payload.questions, answers);
+    }),
 });
 let dispose: () => void;
 let game: ReturnType<typeof useGame>;
@@ -54,22 +75,18 @@ it('reuses the configured runtime and replaces it without resetting the session'
   let released = 0;
   const configurations: string[] = [];
   const configured = (settings: { apiUrl: string; apiKey: string }) =>
-    JevDecisionModel.pipe(
-      Layer.provide(
-        Layer.effect(
-          DecisionClient,
-          Effect.acquireRelease(
-            Effect.sync(() => {
-              acquired += 1;
-              configurations.push(settings.apiKey);
-              return DecisionClient.of({ request: requestClient });
-            }),
-            () =>
-              Effect.sync(() => {
-                released += 1;
-              })
-          )
-        )
+    Layer.effect(
+      DecisionModel.DecisionModel,
+      Effect.acquireRelease(
+        Effect.gen(function* () {
+          acquired += 1;
+          configurations.push(settings.apiKey);
+          return yield* makeModel;
+        }),
+        () =>
+          Effect.sync(() => {
+            released += 1;
+          })
       )
     );
   createRoot((cleanup) => {
@@ -105,40 +122,20 @@ it('reuses the configured runtime and replaces it without resetting the session'
 });
 
 function pendingClientLayer() {
-  let resolve!: (client: DecisionClient['Service']) => void;
-  const promise = new Promise<DecisionClient['Service']>((done) => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
     resolve = done;
   });
   const acquire = vi.fn(() => promise);
   return {
-    layer: JevDecisionModel.pipe(
-      Layer.provide(Layer.effect(DecisionClient, Effect.promise(acquire)))
+    layer: Layer.effect(
+      DecisionModel.DecisionModel,
+      Effect.promise(acquire).pipe(Effect.flatMap(() => makeModel))
     ),
     acquire,
-    resolve: () => resolve(DecisionClient.of({ request: requestClient })),
+    resolve,
   };
 }
-
-it('shows invalid initial settings through the default client without fetching', async () => {
-  vi.stubGlobal('localStorage', { getItem: () => null });
-  const fetch = vi.fn();
-  vi.stubGlobal('fetch', fetch);
-  createRoot((cleanup) => {
-    dispose = cleanup;
-    game = useGame();
-  });
-  enter();
-  await expect(game.submit()).resolves.toBeUndefined();
-  await vi.waitFor(() =>
-    expect(game.error()).toEqual(
-      Option.some('Decision 请求失败，请检查 API URL、API Key 或网络状态。')
-    )
-  );
-  expect(game.input()).toBe('问题');
-  expect(game.loading()).toBe(false);
-  expect(game.messages()).toEqual([]);
-  expect(fetch).not.toHaveBeenCalled();
-});
 
 it('admits one concurrent submission while asynchronously acquiring the client', async () => {
   const client = pendingClientLayer();
@@ -243,7 +240,7 @@ it.each(['local', 'api'] as const)(
   async (provider) => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const description =
-      'Verdict input has 513 tokens; maximum is 512 (no truncation).';
+      'Laya input has 513 tokens; maximum is 512 (no truncation).';
     const layer = Layer.effect(
       DecisionModel.DecisionModel,
       DecisionModel.make({
@@ -251,7 +248,7 @@ it.each(['local', 'api'] as const)(
           Effect.fail(
             AiError.make({
               module:
-                provider === 'local' ? 'LayaDecisionModel' : 'JevDecisionModel',
+                provider === 'local' ? 'LayaDecisionModel' : 'DecisionModel',
               method: 'decide',
               reason: new AiError.UnknownError({
                 description:
@@ -272,7 +269,7 @@ it.each(['local', 'api'] as const)(
       provider,
       apiUrl: 'https://decision.example',
       apiKey: 'secret-key',
-      modelId: 'verdict',
+      modelId: 'onnx-community/laya-multilingual-ONNX',
       backend: 'wasm',
     });
     enter();
@@ -281,13 +278,13 @@ it.each(['local', 'api'] as const)(
       Option.some(
         provider === 'local'
           ? `本地模型判定失败：${description}`
-          : 'Decision 请求失败，请检查 API URL、API Key 或网络状态。'
+          : '判定失败，请重试或检查模型配置。'
       )
     );
     expect(game.input()).toBe('问题');
     if (provider === 'local') {
       expect(log).toHaveBeenCalledWith({
-        modelId: 'verdict',
+        modelId: 'onnx-community/laya-multilingual-ONNX',
         backend: 'wasm',
         stage: 'decide',
         reason: description,

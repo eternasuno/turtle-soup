@@ -2,14 +2,12 @@ import { expect, it } from '@effect/vitest';
 import { Effect, Layer, Redacted, Schema } from 'effect';
 import { DecisionModel } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
+import { askQuestion } from '../src/decision';
 import {
-  askQuestion,
-  DecisionClientLive,
-  normalizeSettings,
-  validateSettings,
-} from '../src/decision';
-import { DecisionClient } from '../src/decision-client';
-import { JevDecisionModelLive } from '../src/decision-provider';
+  DecisionModelLayer,
+  DecisionModelLive,
+} from '../src/decision-provider';
+import { normalizeSettings, validateSettings } from '../src/settings';
 import { DecisionConfiguration, DecisionSettings } from '../src/types';
 
 const puzzle = {
@@ -24,8 +22,13 @@ const settings = {
   apiKey: ' secret ',
 };
 const transport = (fetch: typeof globalThis.fetch, config = settings) =>
-  JevDecisionModelLive(config).pipe(
-    Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
+  DecisionModelLive(config).pipe(
+    Layer.provide(
+      Layer.provide(
+        FetchHttpClient.layer,
+        Layer.succeed(FetchHttpClient.Fetch, fetch)
+      )
+    )
   );
 
 it.effect.each([
@@ -81,7 +84,7 @@ it.effect('fails layer initialization before running its consumer', () =>
     const error = yield* Effect.sync(() => {
       consumed = true;
     }).pipe(
-      Effect.provide(DecisionClientLive({ apiUrl: '', apiKey: '' })),
+      Effect.provide(DecisionModelLive({ apiUrl: '', apiKey: '' })),
       Effect.flip
     );
     expect(error).toMatchObject({
@@ -104,7 +107,15 @@ it.effect('captures normalized configuration once when the layer builds', () =>
       );
       return new Response(
         JSON.stringify({
-          answers: { answer: { type: 'choice', choice: 'yes' } },
+          model: 'jev-latest',
+          answers: {
+            answer: {
+              type: 'choice',
+              choice: 'yes',
+              confidence: 0.9,
+              probabilities: { yes: 1, no: 0, irrelevant: 0, unknown: 0 },
+            },
+          },
         })
       );
     }, config);
@@ -133,11 +144,7 @@ it.effect.each([
 
 it.effect('validates effective configuration union boundaries', () =>
   Effect.gen(function* () {
-    for (const modelId of [
-      'onnx-community/laya-multilingual-ONNX',
-      'Manav2op/verdict-small',
-      'onnx-community/d1-omni-600M-ONNX',
-    ]) {
+    for (const modelId of ['onnx-community/laya-multilingual-ONNX']) {
       for (const backend of ['wasm', 'webgpu']) {
         expect(
           yield* Schema.decodeUnknownEffect(DecisionConfiguration)({
@@ -192,30 +199,37 @@ it.effect(
   'uses configured API model instead of the request payload model',
   () =>
     Effect.gen(function* () {
-      const client = yield* DecisionClient;
-      yield* client.request({
-        model: 'ignored-payload-model',
-        state: '{}',
-        questions: {
-          answer: {
-            type: 'choice',
-            instructions: 'choose',
-            criteria: { yes: 'yes' },
-          },
-        },
-      });
+      yield* askQuestion(puzzle, 'choose');
     }).pipe(
       Effect.provide(
-        DecisionClientLive({ ...settings, apiModel: ' custom-model ' }).pipe(
+        DecisionModelLayer({ ...settings, apiModel: ' custom-model ' }).pipe(
           Layer.provide(
-            Layer.succeed(FetchHttpClient.Fetch, async (_url, init) => {
-              expect(JSON.parse(String(init?.body)).model).toBe('custom-model');
-              return new Response(
-                JSON.stringify({
-                  answers: { answer: { type: 'choice', choice: 'yes' } },
-                })
-              );
-            })
+            Layer.provide(
+              FetchHttpClient.layer,
+              Layer.succeed(FetchHttpClient.Fetch, async (_url, init) => {
+                expect(JSON.parse(String(init?.body)).model).toBe(
+                  'custom-model'
+                );
+                return new Response(
+                  JSON.stringify({
+                    model: 'custom-model',
+                    answers: {
+                      answer: {
+                        type: 'choice',
+                        choice: 'yes',
+                        probabilities: {
+                          yes: 1,
+                          no: 0,
+                          irrelevant: 0,
+                          unknown: 0,
+                        },
+                        confidence: 1,
+                      },
+                    },
+                  })
+                );
+              })
+            )
           )
         )
       )

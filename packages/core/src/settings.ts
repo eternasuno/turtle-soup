@@ -8,7 +8,10 @@ export class SettingsError extends Schema.TaggedError<SettingsError>()(
 
 function settingsValidationMessage(settings: DecisionSettings): string {
   if (settings.provider === 'local') {
-    return '请填写有效的本地模型配置。';
+    return settings.modelId !== undefined &&
+      settings.modelId.trim() !== 'onnx-community/laya-multilingual-ONNX'
+      ? `不支持的本地模型：${settings.modelId}。仅支持 Laya，请重新选择并保存。`
+      : '请填写有效的本地模型配置。';
   }
 
   if (!settings.apiUrl.trim()) {

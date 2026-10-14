@@ -9,7 +9,7 @@ import { LocalModelResourcesLive } from '@turtle-soup/local-model/resources';
 import { Effect } from 'effect';
 import { createSignal, onCleanup, Show } from 'solid-js';
 import { DecisionConfigurationTesterLive } from '../lib/model-management';
-import { resourceFailure } from '../lib/resource-diagnostic';
+import { resourceOperation } from '../lib/resource-diagnostic';
 import {
   ApiSettings,
   LocalSettings,
@@ -26,12 +26,8 @@ export function SettingsDialog(props: {
   let apiUrl: HTMLInputElement | undefined;
   let apiKey: HTMLInputElement | undefined;
   let apiModel: HTMLInputElement | undefined;
-  let modelSelect: HTMLSelectElement | undefined;
-  const [modelId, setModelId] = createSignal(
-    props.settings.modelId ?? localModelDefinitions[0]!.id
-  );
-  const selectedModel = () =>
-    localModelDefinitions.find((model) => model.id === modelId())!;
+  const selectedModel = localModelDefinitions[0]!;
+  const modelId = selectedModel.id;
   let closed = false;
   let cacheRequest = 0;
   let cacheController: AbortController | undefined;
@@ -50,7 +46,7 @@ export function SettingsDialog(props: {
     props.settings.provider === 'local' &&
     provider() === 'local' &&
     backend() === (props.settings.backend ?? 'wasm') &&
-    modelId() === (props.settings.modelId ?? localModelDefinitions[0]!.id);
+    modelId === (props.settings.modelId ?? selectedModel.id);
   const [feedback, setFeedback] = createSignal('');
   const [error, setError] = createSignal('');
   let dialog: HTMLDialogElement | undefined;
@@ -62,7 +58,7 @@ export function SettingsDialog(props: {
       apiUrl,
       apiKey,
       apiModel,
-      modelId: modelId(),
+      modelId: modelId,
     });
   const invalidate = () => {
     cacheRequest++;
@@ -94,7 +90,7 @@ export function SettingsDialog(props: {
   });
   const checkCache = async () => {
     const request = ++cacheRequest;
-    const inspectingModelId = modelId();
+    const inspectingModelId = modelId;
     cacheController?.abort();
     const controller = new AbortController();
     cacheController = controller;
@@ -130,7 +126,7 @@ export function SettingsDialog(props: {
       dialog?.close();
     });
   };
-  const test = async () => {
+  const test = async (api = false) => {
     if (active || disposed || closed) return;
 
     setSelected(false);
@@ -139,7 +135,10 @@ export function SettingsDialog(props: {
     setTesting(true);
     setError('');
     setFeedback('');
-    const settings = { ...draft(), provider: 'local' as const };
+    const settings = {
+      ...draft(),
+      provider: api ? ('api' as const) : ('local' as const),
+    };
     await Effect.runPromiseExit(
       testDecisionConfiguration(settings).pipe(
         Effect.provide(DecisionConfigurationTesterLive),
@@ -151,11 +150,16 @@ export function SettingsDialog(props: {
           },
           onSuccess: () => {
             if (active !== controller) return;
+            if (api) {
+              setFeedback('连接测试成功；点击保存应用设置。');
+              return;
+            }
+
             if (providerSelect) providerSelect.value = 'local';
             setProvider('local');
             setSelected(true);
             setFeedback(
-              `测试成功，已选中 ${selectedModel().name}；点击保存应用设置。`
+              `测试成功，已选中 ${selectedModel.name}；点击保存应用设置。`
             );
           },
         }),
@@ -170,8 +174,10 @@ export function SettingsDialog(props: {
       ),
       { signal: controller.signal }
     );
-    if (!controller.signal.aborted && !disposed) await checkCache();
+    if (!api && !controller.signal.aborted && !disposed) await checkCache();
   };
+  const isCurrent = (controller: AbortController) =>
+    active === controller && !disposed && !closed && !controller.signal.aborted;
   const removeCache = async () => {
     if (active || disposed || closed) return;
 
@@ -181,26 +187,23 @@ export function SettingsDialog(props: {
     setDeleting(true);
     setError('');
     setFeedback('');
-    const removingModelId = modelId();
+    const removingModelId = modelId;
     await Effect.runPromiseExit(
-      Effect.gen(function* () {
-        const resources = yield* LocalModelResources;
-        yield* resources.remove(removingModelId);
-      }).pipe(
-        Effect.provide(LocalModelResourcesLive),
-        Effect.match({
-          onFailure: (error) => {
-            if (active === controller && !disposed && !closed && !controller.signal.aborted)
-              setError(resourceFailure(error, removingModelId, 'remove'));
-          },
-          onSuccess: () => {
-            if (active !== controller) return;
-
-            setCached(false);
-            setSelected(false);
-            setFeedback(`${selectedModel().name} 缓存已删除；再次使用前需要重新下载。`);
-          },
-        })
+      resourceOperation(
+        LocalModelResources.use((resources) =>
+          resources.remove(removingModelId)
+        ).pipe(Effect.provide(LocalModelResourcesLive)),
+        removingModelId,
+        'remove',
+        () => isCurrent(controller),
+        setError,
+        () => {
+          setCached(false);
+          setSelected(false);
+          setFeedback(
+            `${selectedModel.name} 缓存已删除；再次使用前需要重新下载。`
+          );
+        }
       ),
       { signal: controller.signal }
     );
@@ -217,25 +220,24 @@ export function SettingsDialog(props: {
     setTesting(true);
     setError('');
     setFeedback('');
-    const preparingModelId = modelId();
+    const preparingModelId = modelId;
     await Effect.runPromiseExit(
-      prepareLocalModel(preparingModelId).pipe(
-        Effect.provide(LocalModelResourcesLive),
-        Effect.match({
-          onFailure: (error) => {
-            if (active === controller && !disposed && !closed && !controller.signal.aborted)
-              setError(resourceFailure(error, preparingModelId, 'prepare'));
-          },
-          onSuccess: () => {
-            if (active === controller)
-              setFeedback(`${selectedModel().name} 已准备好，点击使用测试并选中。`);
-          },
-        })
+      resourceOperation(
+        prepareLocalModel(preparingModelId).pipe(
+          Effect.provide(LocalModelResourcesLive)
+        ),
+        preparingModelId,
+        'prepare',
+        () => isCurrent(controller),
+        setError,
+        () =>
+          setFeedback(`${selectedModel.name} 已准备好，点击使用测试并选中。`)
       ),
       { signal: controller.signal }
     );
     if (active === controller) {
-      if (!controller.signal.aborted && !disposed && !closed) await checkCache();
+      if (!controller.signal.aborted && !disposed && !closed)
+        await checkCache();
       if (active === controller) {
         active = undefined;
         setTesting(false);
@@ -276,26 +278,25 @@ export function SettingsDialog(props: {
         modelRef={(element) => (apiModel = element)}
         onInput={invalidate}
       />
+      <Show when={provider() === 'api'}>
+        <button
+          type="button"
+          class="btn btn-outline w-full"
+          disabled={testing()}
+          onClick={() => void test(true)}
+        >
+          {testing() ? '测试中…' : '测试连接'}
+        </button>
+      </Show>
       <Show when={provider() === 'local'}>
         <LocalSettings
-          model={selectedModel()}
+          model={selectedModel}
           backend={backend()}
           testing={testing()}
           cached={cached()}
           usingSavedModel={usingSavedModel()}
           deleting={deleting()}
           selected={selected()}
-          modelRef={(element) => (modelSelect = element)}
-          onModelChange={() => {
-            invalidate();
-            setModelId(
-              localModelDefinitions.find(
-                (model) => model.id === modelSelect!.value
-              )!.id
-            );
-            setCached(undefined);
-            void checkCache();
-          }}
           onBackendChange={(value) => {
             selectedBackend = value;
             setBackend(value);

@@ -1,5 +1,8 @@
 import { RegistryContext, useAtomValue } from '@effect/atom-solid';
-import type { DecisionError } from '@turtle-soup/core/decision';
+import {
+  type DecisionError,
+  DecisionFailureReason,
+} from '@turtle-soup/core/decision-error';
 import { makeSession } from '@turtle-soup/core/session';
 import type { SettingsError } from '@turtle-soup/core/settings';
 import { loadInitialSettings } from '@turtle-soup/core/settings';
@@ -176,11 +179,12 @@ export function useGame(
                         });
 
                         return AiError.make({
-                          module: 'LayaDecisionModel',
+                          module: 'Game',
                           method: cause.method,
-                          reason: new AiError.UnknownError({
-                            description: diagnostic.reason,
-                          }),
+                          reason: new DecisionFailureReason(
+                            `本地模型判定失败：${diagnostic.reason}`,
+                            cause
+                          ),
                         });
                       })
                     )

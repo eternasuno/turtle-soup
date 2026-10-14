@@ -134,6 +134,41 @@ it.each(['error', 'messageerror', 'invalid', 'dispose', 'init-abort'])(
   }
 );
 
+it.each([
+  { name: 'undefined request result', value: undefined },
+  { name: 'missing answer', value: {} },
+  { name: 'extra answer', value: { ...answers, extra: answers.answer } },
+  { name: 'wrong answer ID', value: { other: answers.answer } },
+  {
+    name: 'unknown choice',
+    value: { answer: { ...answers.answer, choice: 'maybe' } },
+  },
+  {
+    name: 'invalid confidence',
+    value: { answer: { ...answers.answer, confidence: 2 } },
+  },
+])('rejects $name and terminates the worker', async ({ value }) => {
+  const { client, worker, signal } = setup();
+  const request = client.request(payload, signal);
+  const rejected = expect(request).rejects.toThrow(
+    'Invalid Laya worker response'
+  );
+  worker.respond({ type: 'success', id: 1, value });
+  await rejected;
+  expect(worker.terminate).toHaveBeenCalledTimes(1);
+});
+
+it('rejects answers returned for initialization', async () => {
+  const { client, worker, signal } = setup();
+  const loading = client.load('wasm', signal);
+  const rejected = expect(loading).rejects.toThrow(
+    'Invalid Laya worker response'
+  );
+  worker.respond({ type: 'success', id: 1, value: answers });
+  await rejected;
+  expect(worker.terminate).toHaveBeenCalledTimes(1);
+});
+
 it('runs worker requests serially and skips canceled queued requests', async () => {
   vi.resetModules();
   let finish!: (value: typeof answers) => void;

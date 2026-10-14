@@ -3,7 +3,7 @@ import {
   ChoiceAnswer,
   type ChoiceAnswer as ChoiceAnswerType,
   type DecisionRequest as DecisionRequestType,
-} from '@turtle-soup/core/decision';
+} from '@turtle-soup/core/decision-schema';
 import { Schema } from 'effect';
 
 export type LayaConfig = {

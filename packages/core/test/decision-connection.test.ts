@@ -1,8 +1,9 @@
 import { expect, it } from '@effect/vitest';
 import { Effect, Layer } from 'effect';
 import { FetchHttpClient } from 'effect/http';
-import { DECISION_ERROR_MESSAGE, testConnection } from '../src/decision';
-import { JevDecisionModelLive } from '../src/decision-provider';
+import { testConnection } from '../src/decision';
+import { DECISION_ERROR_MESSAGE } from '../src/decision-error';
+import { DecisionModelLive } from '../src/decision-provider';
 
 it.effect.each(['ready', 'unavailable', 'invalid', undefined] as const)(
   'tests connection %s',
@@ -10,7 +11,7 @@ it.effect.each(['ready', 'unavailable', 'invalid', undefined] as const)(
     Effect.gen(function* () {
       const operation = testConnection().pipe(
         Effect.provide(
-          JevDecisionModelLive({
+          DecisionModelLive({
             apiUrl: 'https://decision.example/evaluate',
             apiKey: 'secret',
           }).pipe(
@@ -20,7 +21,18 @@ it.effect.each(['ready', 'unavailable', 'invalid', undefined] as const)(
                 async () =>
                   new Response(
                     JSON.stringify({
-                      answers: { connection: { type: 'choice', choice } },
+                      model: 'jev-latest',
+                      answers: {
+                        connection: {
+                          type: 'choice',
+                          choice,
+                          confidence: 1,
+                          probabilities: {
+                            ready: choice === 'ready' ? 1 : 0,
+                            unavailable: choice === 'unavailable' ? 1 : 0,
+                          },
+                        },
+                      },
                     })
                   )
               )

@@ -1,4 +1,4 @@
-import { JevDecisionModelLive } from '@turtle-soup/core/decision-provider';
+import { DecisionModelLive } from '@turtle-soup/core/decision-provider';
 import type { SettingsError } from '@turtle-soup/core/settings';
 import { resolveDecisionConfiguration } from '@turtle-soup/core/settings';
 import type { DecisionSettings } from '@turtle-soup/core/types';
@@ -26,7 +26,7 @@ export const configuredDecision = (
                 configuration.backend,
                 onProgress
               )
-            : JevDecisionModelLive({
+            : DecisionModelLive({
                 provider: 'api',
                 apiUrl: configuration.url,
                 apiKey: Redacted.value(configuration.key),

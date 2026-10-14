@@ -1,12 +1,41 @@
-import { DecisionClient } from '@turtle-soup/core/decision';
-import { JevDecisionModel } from '@turtle-soup/core/decision-provider';
+import type { DecisionError } from '@turtle-soup/core/decision-error';
+import {
+  choiceAnswersToProvider,
+  providerOptionsToRequest,
+} from '@turtle-soup/core/decision-provider';
+import type { ChoiceAnswer } from '@turtle-soup/core/decision-schema';
 import { Effect, Layer } from 'effect';
+import { AiError, DecisionModel } from 'effect/ai';
 import { createRoot } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
 import { useGame } from '../../src/lib/game';
 
-const requestClient = vi.fn<DecisionClient['Service']['request']>();
+const requestClient =
+  vi.fn<
+    (
+      payload: DecisionModel.ProviderOptions
+    ) => Effect.Effect<Record<string, ChoiceAnswer>, DecisionError>
+  >();
 const answer = () => ({ answer: { type: 'choice' as const, choice: 'yes' } });
+const makeModel = DecisionModel.make({
+  decide: (options) =>
+    requestClient(options).pipe(
+      Effect.flatMap((answers) =>
+        providerOptionsToRequest(options).pipe(
+          Effect.map((payload) =>
+            choiceAnswersToProvider(payload.questions, answers)
+          )
+        )
+      ),
+      Effect.mapError((cause) =>
+        AiError.make({
+          module: 'TestModel',
+          method: 'decide',
+          reason: Object.assign(new AiError.UnknownError({}), { cause }),
+        })
+      )
+    ),
+});
 let dispose: () => void;
 let game: ReturnType<typeof useGame>;
 afterEach(() => {
@@ -40,11 +69,11 @@ function controlledFrames() {
 
 it('publishes pending input and messages before inference on both cold and warm submissions', async () => {
   const frames = controlledFrames();
-  const acquire = vi.fn(() => DecisionClient.of({ request: requestClient }));
+  const acquire = vi.fn(() => makeModel);
   createRoot((cleanup) => {
     dispose = cleanup;
     game = useGame(
-      JevDecisionModel.pipe(Layer.provide(Layer.sync(DecisionClient, acquire)))
+      Layer.effect(DecisionModel.DecisionModel, Effect.suspend(acquire))
     );
   });
   requestClient.mockReturnValue(Effect.succeed(answer()));
@@ -80,16 +109,7 @@ it.each(['dispose', 'reveal', 'reset', 'settings'] as const)(
     const frames = controlledFrames();
     createRoot((cleanup) => {
       dispose = cleanup;
-      game = useGame(
-        JevDecisionModel.pipe(
-          Layer.provide(
-            Layer.succeed(
-              DecisionClient,
-              DecisionClient.of({ request: requestClient })
-            )
-          )
-        )
-      );
+      game = useGame(Layer.effect(DecisionModel.DecisionModel, makeModel));
     });
     requestClient.mockReturnValue(Effect.succeed(answer()));
     enter();

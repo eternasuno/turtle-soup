@@ -2,13 +2,9 @@ import { expect, it } from '@effect/vitest';
 import { Cause, Deferred, Effect, Exit, Fiber, Layer } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import { TestClock } from 'effect/testing';
-import {
-  askQuestion,
-  DECISION_ERROR_MESSAGE,
-  evaluateSolution,
-  testConnection,
-} from '../src/decision';
-import { JevDecisionModelLive } from '../src/decision-provider';
+import { askQuestion, evaluateSolution, testConnection } from '../src/decision';
+import { DECISION_ERROR_MESSAGE } from '../src/decision-error';
+import { DecisionModelLive } from '../src/decision-provider';
 
 const puzzle = {
   id: 'soup',
@@ -40,7 +36,7 @@ it.effect.each(operations)('aborts $name at 30 seconds', ({ operation }) =>
         });
       });
     };
-    const layer = JevDecisionModelLive(settings).pipe(
+    const layer = DecisionModelLive(settings).pipe(
       Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
     );
     const fiber = yield* Effect.forkChild(
@@ -76,7 +72,7 @@ it.effect.each(operations)(
           );
         });
       };
-      const layer = JevDecisionModelLive(settings).pipe(
+      const layer = DecisionModelLive(settings).pipe(
         Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
       );
       const fiber = yield* Effect.forkChild(
@@ -104,6 +100,7 @@ it.effect.each(['status', 'body'] as const)(
             start(controller) {
               if (failure === 'body')
                 controller.error(new Error('stream failed'));
+              else controller.close();
             },
           }),
           { status: failure === 'status' ? 503 : 200 }
@@ -118,7 +115,7 @@ it.effect.each(['status', 'body'] as const)(
         expect(signal?.aborted).toBe(true);
       }).pipe(
         Effect.provide(
-          JevDecisionModelLive(settings).pipe(
+          DecisionModelLive(settings).pipe(
             Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
           )
         )
@@ -150,7 +147,7 @@ it.effect('keeps body decoding within the request scope and timeout', () =>
     const fiber = yield* Effect.forkChild(
       askQuestion(puzzle, '问题').pipe(
         Effect.provide(
-          JevDecisionModelLive(settings).pipe(
+          DecisionModelLive(settings).pipe(
             Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
           )
         ),

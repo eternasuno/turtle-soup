@@ -1,12 +1,11 @@
-import type { ChoiceAnswer, DecisionRequest } from '@turtle-soup/core/decision';
+import type {
+  ChoiceAnswer,
+  DecisionRequest,
+} from '@turtle-soup/core/decision-schema';
 import type { LocalModelId } from '@turtle-soup/core/types';
 import { Schema } from 'effect';
 import type { LayaProgress } from './laya';
-import {
-  WorkerAnswers,
-  WorkerCommand,
-  WorkerResponse,
-} from './worker-protocol';
+import { WorkerCommand, WorkerResponse } from './worker-protocol';
 
 type Pending = {
   command: Exclude<WorkerCommand, { type: 'cancel' }>;
@@ -16,9 +15,12 @@ type Pending = {
   onProgress?: (progress: LayaProgress) => void;
 };
 
-function validateAnswers(payload: DecisionRequest, value: unknown) {
-  const answers = Schema.decodeUnknownSync(WorkerAnswers)(value);
+function validateAnswers(
+  payload: DecisionRequest,
+  answers: Extract<WorkerResponse, { type: 'success' }>['value']
+) {
   if (
+    answers === undefined ||
     Object.keys(answers).length !== Object.keys(payload.questions).length ||
     Object.entries(payload.questions).some(
       ([id, question]) =>
@@ -97,6 +99,10 @@ class LayaWorker {
       if (response.type === 'error') {
         this.settle(response.id, new Error(response.message));
         return;
+      }
+
+      if (entry.command.type === 'init' && response.value !== undefined) {
+        throw new Error('Invalid Laya initialization result');
       }
 
       const value =

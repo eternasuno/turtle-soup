@@ -138,10 +138,7 @@ it.each(['load', 'request'] as const)(
   }
 );
 
-it.each([
-  'Manav2op/verdict-small',
-  'onnx-community/d1-omni-600M-ONNX',
-] as const)(
+it.each(['onnx-community/laya-multilingual-ONNX'] as const)(
   'passes selected model %s to the scoped worker',
   async (modelId) => {
     await Effect.runPromise(

@@ -10,9 +10,9 @@ const mocks = vi.hoisted(() => ({
   dispose: vi.fn(),
 }));
 
-vi.mock('../src/model-cache', () => ({
-  isModelCached: mocks.inspect,
-  deleteModelCache: mocks.remove,
+vi.mock('../src/laya', () => ({
+  isLayaCached: mocks.inspect,
+  deleteLayaCache: mocks.remove,
 }));
 
 vi.mock('../src/worker-client', () => ({

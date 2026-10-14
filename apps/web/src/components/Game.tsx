@@ -1,4 +1,5 @@
-import { Option } from 'effect';
+import { resolveDecisionConfiguration } from '@turtle-soup/core/settings';
+import { Effect, Option, Result } from 'effect';
 import { createSignal, Show } from 'solid-js';
 import puzzles from '../data/puzzles.json';
 import { useGame } from '../lib/game';
@@ -10,8 +11,11 @@ import { SettingsDialog } from './SettingsDialog';
 export function Game() {
   const game = useGame();
   const [showSettings, setShowSettings] = createSignal(
-    game.settings().provider !== 'local' &&
-      (!game.settings().apiUrl.trim() || !game.settings().apiKey.trim())
+    Result.isFailure(
+      Effect.runSync(
+        resolveDecisionConfiguration(game.settings()).pipe(Effect.result)
+      )
+    )
   );
   const [resultDismissed, setResultDismissed] = createSignal(false);
   const nextPuzzle = () => {

@@ -154,8 +154,6 @@ it.effect('maps model failures to the fixed player-visible error', () =>
       Effect.provide(layer),
       Effect.flip
     );
-    expect(error.message).toBe(
-      'Decision 请求失败，请检查 API URL、API Key 或网络状态。'
-    );
+    expect(error.message).toBe('判定失败，请重试或检查模型配置。');
   })
 );

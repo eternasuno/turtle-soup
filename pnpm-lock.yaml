@@ -107,6 +107,9 @@ settings:
 
 catalogs:
   default:
+    '@effect/ai-typesafe':
+      specifier: 4.0.0
+      version: 4.0.0
     '@effect/atom-solid':
       specifier: 4.0.0
       version: 4.0.0
@@ -194,6 +197,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@effect/ai-typesafe':
+        specifier: 'catalog:'
+        version: 4.0.0(effect@4.0.0)
       effect:
         specifier: 'catalog:'
         version: 4.0.0
@@ -360,6 +366,11 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@effect/ai-typesafe@4.0.0':
+    resolution: {integrity: sha512-TbInR017yf4KFAYD1jTSr9pkQrob1+9UNyW6KKRHHGfmD8j121f41fOf+60RJ7IIBl/XOUAURC8/Mj7aWkGZtg==}
+    peerDependencies:
+      effect: ^4.0.0
 
   '@effect/atom-solid@4.0.0':
     resolution: {integrity: sha512-aiFIXe5DEVzNUm4Z8CVrBaDJNmRIhgGFS2UvCXf+5oIm4hqxIme7ynF/ZpENwPjjaqgckKJPuR519c6+e3GQcg==}
@@ -1894,6 +1905,10 @@ snapshots:
 
   '@biomejs/cli-win32-x64@2.5.12':
     optional: true
+
+  '@effect/ai-typesafe@4.0.0(effect@4.0.0)':
+    dependencies:
+      effect: 4.0.0
 
   '@effect/atom-solid@4.0.0(effect@4.0.0)(solid-js@1.9.17)':
     dependencies:

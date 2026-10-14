@@ -2,10 +2,10 @@ import { Array as Arr, Effect, Match, Option, Random, Schema } from 'effect';
 import type { DecisionModel } from 'effect/ai';
 import {
   askQuestion,
-  type DecisionError,
   evaluateSolution,
   type InvalidPuzzleError,
 } from './decision';
+import type { DecisionError } from './decision-error';
 import type { Puzzle, PuzzleView, SubmissionResult } from './types';
 
 export const puzzleView = (puzzle: Puzzle): PuzzleView => ({

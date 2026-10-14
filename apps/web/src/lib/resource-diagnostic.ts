@@ -1,5 +1,26 @@
 import type { ModelResourceError } from '@turtle-soup/core/model-management';
+import { Effect } from 'effect';
 import { sanitizeLocalReason } from './local-diagnostic';
+
+export function resourceOperation<A, R>(
+  operation: Effect.Effect<A, ModelResourceError, R>,
+  modelId: string,
+  stage: 'prepare' | 'remove',
+  current: () => boolean,
+  onError: (message: string) => void,
+  onSuccess: () => void
+) {
+  return operation.pipe(
+    Effect.match({
+      onFailure: (error) => {
+        if (current()) onError(resourceFailure(error, modelId, stage));
+      },
+      onSuccess: () => {
+        if (current()) onSuccess();
+      },
+    })
+  );
+}
 
 export function resourceFailure(
   error: ModelResourceError,

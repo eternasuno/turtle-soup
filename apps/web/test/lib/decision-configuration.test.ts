@@ -56,7 +56,7 @@ afterEach(() => {
 
 describe('configured decision testing', () => {
   for (const definition of localModelDefinitions) {
-    for (const backend of definition.backends) {
+    for (const backend of ['wasm', 'webgpu'] as const) {
       it.effect(
         `passes ${definition.id} and ${backend} to the local layer`,
         () =>

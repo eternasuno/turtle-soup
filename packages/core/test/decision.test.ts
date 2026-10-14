@@ -1,13 +1,9 @@
 import { expect, it } from '@effect/vitest';
 import { Effect, Layer, Option, Schema } from 'effect';
 import { FetchHttpClient } from 'effect/http';
-import {
-  askQuestion,
-  DECISION_ERROR_MESSAGE,
-  DecisionError,
-  evaluateSolution,
-} from '../src/decision';
-import { JevDecisionModelLive } from '../src/decision-provider';
+import { askQuestion, evaluateSolution } from '../src/decision';
+import { DECISION_ERROR_MESSAGE, DecisionError } from '../src/decision-error';
+import { DecisionModelLive } from '../src/decision-provider';
 import type { Puzzle } from '../src/types';
 
 const puzzle: Puzzle = {
@@ -25,18 +21,31 @@ const settings = {
   apiKey: ' secret ',
 };
 const transport = (fetch: typeof globalThis.fetch) =>
-  JevDecisionModelLive(settings).pipe(
+  DecisionModelLive(settings).pipe(
     Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch))
   );
 const response = (answers: unknown) =>
-  transport(async () => new Response(JSON.stringify({ answers })));
+  transport(
+    async () => new Response(JSON.stringify({ model: 'jev-latest', answers }))
+  );
+const choiceAnswer = (choice: string, confidence = 0.9) => ({
+  type: 'choice',
+  choice,
+  confidence,
+  probabilities: Object.fromEntries(
+    (['yes', 'no', 'irrelevant', 'unknown'].includes(choice)
+      ? ['yes', 'no', 'irrelevant', 'unknown']
+      : ['matched', 'missing']
+    ).map((label) => [label, label === choice ? 1 : 0])
+  ),
+});
 
 it.effect.each(['yes', 'no', 'irrelevant', 'unknown'] as const)(
   'returns question choice %s',
   (choice) =>
     Effect.gen(function* () {
       const result = yield* askQuestion(puzzle, '问题').pipe(
-        Effect.provide(response({ answer: { type: 'choice', choice } }))
+        Effect.provide(response({ answer: choiceAnswer(choice) }))
       );
       expect(result).toEqual({ answer: choice });
     })
@@ -58,13 +67,11 @@ it.effect(
         expect(headers.get('content-type')).toBe('application/json');
         const body = decodePayload(init);
         expect(body.model).toBe('jev-latest');
-        expect(body.state).toBe(
-          JSON.stringify({
-            surface: puzzle.surface,
-            truth: puzzle.truth,
-            playerInput: '问题',
-          })
-        );
+        expect(body.state).toEqual({
+          surface: puzzle.surface,
+          truth: puzzle.truth,
+          playerInput: '问题',
+        });
         expect(Object.keys(body.questions['answer']!.criteria)).toEqual([
           'yes',
           'no',
@@ -79,7 +86,8 @@ it.effect(
         );
         return new Response(
           JSON.stringify({
-            answers: { answer: { type: 'choice', choice: 'yes' } },
+            model: 'jev-latest',
+            answers: { answer: choiceAnswer('yes') },
           })
         );
       });
@@ -91,7 +99,7 @@ function decodePayload(init: RequestInit | undefined) {
   return Schema.decodeUnknownSync(
     Schema.Struct({
       model: Schema.String,
-      state: Schema.String,
+      state: Schema.Unknown,
       questions: Schema.Record(
         Schema.String,
         Schema.Struct({
@@ -114,8 +122,8 @@ it.effect.each([
       const result = yield* evaluateSolution(puzzle, '答案').pipe(
         Effect.provide(
           response({
-            recognition: { type: 'choice', choice: first, confidence: 0 },
-            deception: { type: 'choice', choice: second, confidence: 1 },
+            recognition: choiceAnswer(first, 0),
+            deception: choiceAnswer(second, 1),
           })
         )
       );
@@ -153,7 +161,7 @@ it.effect(
           'recognition',
           'deception',
         ]);
-        expect(JSON.parse(body.state)).toEqual({
+        expect(body.state).toEqual({
           surface: puzzle.surface,
           truth: puzzle.truth,
           playerInput: '答案',
@@ -178,9 +186,10 @@ it.effect(
         changing.judgmentPoints.push({ id: 'new', description: 'new fact' });
         return new Response(
           JSON.stringify({
+            model: 'jev-latest',
             answers: {
-              recognition: { type: 'choice', choice: 'matched' },
-              deception: { type: 'choice', choice: 'missing' },
+              recognition: choiceAnswer('matched'),
+              deception: choiceAnswer('missing'),
             },
           })
         );
@@ -193,12 +202,12 @@ it.effect(
         {
           fact: puzzle.judgmentPoints[0]!.description,
           matched: true,
-          confidence: Option.none(),
+          confidence: Option.some(0.9),
         },
         {
           fact: puzzle.judgmentPoints[1]!.description,
           matched: false,
-          confidence: Option.none(),
+          confidence: Option.some(0.9),
         },
       ]);
     })
@@ -207,18 +216,14 @@ it.effect(
 it.effect.each<unknown>([
   {},
   { constructor: { type: 'choice', choice: 'yes' } },
-  { answer: { type: 'choice', choice: 'maybe' } },
+  { answer: choiceAnswer('maybe') },
   { answer: { type: 'text', choice: 'yes' } },
   { answer: null },
-  { answer: { type: 'choice', choice: 'constructor' } },
-  {
-    answer: { type: 'choice', choice: 'yes' },
-    extra: { type: 'choice', choice: 'yes' },
-  },
-  { answer: { type: 'choice', choice: 'yes', confidence: -0.1 } },
-  { answer: { type: 'choice', choice: 'yes', confidence: 1.1 } },
-  { answer: { type: 'choice', choice: 'yes', confidence: '0.5' } },
-  { answer: { type: 'choice', choice: 'yes', confidence: null } },
+  { answer: choiceAnswer('constructor') },
+  { answer: { ...choiceAnswer('yes'), confidence: -0.1 } },
+  { answer: { ...choiceAnswer('yes'), confidence: 1.1 } },
+  { answer: { ...choiceAnswer('yes'), confidence: '0.5' } },
+  { answer: { ...choiceAnswer('yes'), confidence: null } },
 ])('rejects malformed question answer %#', (answers) =>
   Effect.gen(function* () {
     const error = yield* askQuestion(puzzle, '问题').pipe(
@@ -231,25 +236,16 @@ it.effect.each<unknown>([
 );
 
 it.effect.each([
-  { recognition: { type: 'choice', choice: 'matched' } },
+  { recognition: choiceAnswer('matched') },
   {
-    recognition: { type: 'choice', choice: 'yes' },
-    deception: { type: 'choice', choice: 'missing' },
+    recognition: choiceAnswer('yes'),
+    deception: choiceAnswer('missing'),
   },
   {
-    recognition: { type: 'choice', choice: 'matched' },
-    unexpected: { type: 'choice', choice: 'missing' },
+    recognition: choiceAnswer('constructor'),
+    deception: choiceAnswer('missing'),
   },
-  {
-    recognition: { type: 'choice', choice: 'constructor' },
-    deception: { type: 'choice', choice: 'missing' },
-  },
-  {
-    recognition: { type: 'choice', choice: 'matched' },
-    deception: { type: 'choice', choice: 'missing' },
-    'extra-point': { type: 'choice', choice: 'matched' },
-  },
-])('rejects missing, extra or invalid fact answers %#', (answers) =>
+])('rejects missing or invalid fact answers %#', (answers) =>
   Effect.gen(function* () {
     const error = yield* evaluateSolution(puzzle, '答案').pipe(
       Effect.provide(response(answers)),

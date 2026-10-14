@@ -4,6 +4,7 @@ packages:
 
 catalog:
   effect: 4.0.0
+  "@effect/ai-typesafe": 4.0.0
   solid-js: 1.9.17
   "@effect/atom-solid": 4.0.0
   "@effect/vitest": 4.0.0
