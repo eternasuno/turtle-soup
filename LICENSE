@@ -1,3 +1,25 @@
+Puzzle content notice
+
+All 50 puzzles in apps/web/src/data/puzzles.json are Chinese translations and
+adaptations of questions and accepted answers on Puzzling Stack Exchange.
+The individual authors, question and answer links, and original post licenses
+(CC BY-SA 3.0 or CC BY-SA 4.0) are recorded in
+apps/web/src/data/puzzle-sources.json. Attribution belongs to those authors;
+no endorsement is implied. Retrieved and adapted on 2026-10-15.
+
+Changes: translated and condensed into Chinese, adjusted narrative details to
+resolve ambiguity and contradictions, and added judgment points. These are
+adaptations, not verbatim translations. Some titles and settings were changed.
+
+The adapted puzzle content is distributed under CC BY-SA 4.0:
+https://creativecommons.org/licenses/by-sa/4.0/
+Legal code: https://creativecommons.org/licenses/by-sa/4.0/legalcode
+Original 3.0 license: https://creativecommons.org/licenses/by-sa/3.0/
+When sharing or adapting these puzzles, retain appropriate attribution, links
+to the source and license, indicate changes, and license adaptations under
+CC BY-SA 4.0 as required. Do not impose additional restrictions.
+The MIT license below applies to project code, not these puzzle texts.
+
 MIT License
 
 Copyright (c) 2026 eternasuno

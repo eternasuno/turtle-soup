@@ -107,7 +107,13 @@ web 每个游戏 owner 保有一个 AtomRegistry，用 atom-solid 的 RegistryCo
 
 管理流程保留少量用例：`saveSettings` 负责保存，`testDecisionConfiguration` 通过 DecisionConfigurationTester 测试，`prepareLocalModel` 通过 LocalModelResources 检查→必要时下载→复查。inspect/download/remove 是资源能力，不要为每个按钮机械拆出用例；浏览器实现留在 local-model/web。共用依赖版本统一维护在 pnpm-workspace.yaml 的 catalog。
 
-题库：`apps/web/src/data/puzzles.json`。
+题库：`apps/web/src/data/puzzles.json`，当前共 50 道，已全部替换为 [Puzzling Stack Exchange](https://puzzling.stackexchange.com/) 问题与采纳答案的中文改编，ID 使用 `pse-原帖编号`。
+
+逐题引用见 [puzzle-sources.json](apps/web/src/data/puzzle-sources.json)：每题分别记录题主、答主、作者主页、题目链接、采纳答案链接及原帖的 CC BY-SA 3.0 / 4.0 许可证。示例来源包括 [Poisoned Iced Tea](https://puzzling.stackexchange.com/questions/2980/poisoned-iced-tea)、[Save our WWII planes](https://puzzling.stackexchange.com/questions/57058/save-our-wwii-planes) 和 [A shoe in the safe](https://puzzling.stackexchange.com/questions/90899/a-shoe-in-the-safe)。
+
+整理日期：2026-10-15。改编包括中文翻译、压缩叙述、调整背景及细节以修正漏洞，并添加原子判定点；不是原帖逐字译文。题库涵盖情境反转、生活观察、侦探线索及少量横向思维解法题，不全部属于长篇叙事型海龟汤。部分题目涉及死亡、犯罪或疾病。
+
+本项目的题目改编文本按 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 分发，不适用代码的 MIT 许可证。再分发时须保留作者署名、来源与许可证链接、注明修改，并按相同方式共享条款发布改编。完整说明见 [LICENSE](LICENSE)。
 
 ```ts
 interface Puzzle {

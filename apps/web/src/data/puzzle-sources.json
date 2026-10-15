@@ -1,0 +1,908 @@
+{
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "retrievedAt": "2026-10-15",
+  "changes": "中文翻译、压缩及情境改编；修正叙述漏洞，部分更换背景或简化结局；添加原子判定点。不是原帖逐字译文。",
+  "puzzles": [
+    {
+      "id": "pse-2980",
+      "question": {
+        "id": 2980,
+        "url": "https://puzzling.stackexchange.com/questions/2980/poisoned-iced-tea",
+        "author": "generalcrispy",
+        "authorUrl": "https://puzzling.stackexchange.com/users/2444/generalcrispy",
+        "license": "CC BY-SA 3.0",
+        "title": "Poisoned Iced Tea"
+      },
+      "answer": {
+        "id": 2981,
+        "url": "https://puzzling.stackexchange.com/a/2981",
+        "author": "Bozman",
+        "authorUrl": "https://puzzling.stackexchange.com/users/2803/bozman",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-57058",
+      "question": {
+        "id": 57058,
+        "url": "https://puzzling.stackexchange.com/questions/57058/save-our-wwii-planes",
+        "author": "Chuck",
+        "authorUrl": "https://puzzling.stackexchange.com/users/12964/chuck",
+        "license": "CC BY-SA 4.0",
+        "title": "Save our WWII planes"
+      },
+      "answer": {
+        "id": 57059,
+        "url": "https://puzzling.stackexchange.com/a/57059",
+        "author": "M Oehm",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9860/m-oehm",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-72865",
+      "question": {
+        "id": 72865,
+        "url": "https://puzzling.stackexchange.com/questions/72865/mysterious-loss-of-weight",
+        "author": "Quark-epoch",
+        "authorUrl": "https://puzzling.stackexchange.com/users/51989/quark-epoch",
+        "license": "CC BY-SA 4.0",
+        "title": "Mysterious loss of weight"
+      },
+      "answer": {
+        "id": 72867,
+        "url": "https://puzzling.stackexchange.com/a/72867",
+        "author": "Quintec",
+        "authorUrl": "https://puzzling.stackexchange.com/users/36976/quintec",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-38599",
+      "question": {
+        "id": 38599,
+        "url": "https://puzzling.stackexchange.com/questions/38599/masked-strangers-take-baby-at-knifepoint",
+        "author": "jamesdlin",
+        "authorUrl": "https://puzzling.stackexchange.com/users/388/jamesdlin",
+        "license": "CC BY-SA 3.0",
+        "title": "Masked strangers take baby at knifepoint"
+      },
+      "answer": {
+        "id": 38600,
+        "url": "https://puzzling.stackexchange.com/a/38600",
+        "author": "DooplissForce",
+        "authorUrl": "https://puzzling.stackexchange.com/users/23521/dooplissforce",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-64907",
+      "question": {
+        "id": 64907,
+        "url": "https://puzzling.stackexchange.com/questions/64907/how-did-the-pilot-survive-the-crash",
+        "author": "stackzebra",
+        "authorUrl": "https://puzzling.stackexchange.com/users/48634/stackzebra",
+        "license": "CC BY-SA 3.0",
+        "title": "How did the pilot survive the crash?"
+      },
+      "answer": {
+        "id": 64908,
+        "url": "https://puzzling.stackexchange.com/a/64908",
+        "author": "Sae&#239;dryl",
+        "authorUrl": "https://puzzling.stackexchange.com/users/43050/sae%c3%afdryl",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-93093",
+      "question": {
+        "id": 93093,
+        "url": "https://puzzling.stackexchange.com/questions/93093/what-was-this-unstoppable-vehicle",
+        "author": "Sophie Swett",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9650/sophie-swett",
+        "license": "CC BY-SA 4.0",
+        "title": "What was this unstoppable vehicle?"
+      },
+      "answer": {
+        "id": 93094,
+        "url": "https://puzzling.stackexchange.com/a/93094",
+        "author": "Bass",
+        "authorUrl": "https://puzzling.stackexchange.com/users/36023/bass",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-82003",
+      "question": {
+        "id": 82003,
+        "url": "https://puzzling.stackexchange.com/questions/82003/sallys-older-brother",
+        "author": "rybo111",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9802/rybo111",
+        "license": "CC BY-SA 4.0",
+        "title": "Sally&#39;s older brother"
+      },
+      "answer": {
+        "id": 82004,
+        "url": "https://puzzling.stackexchange.com/a/82004",
+        "author": "Jafe",
+        "authorUrl": "https://puzzling.stackexchange.com/users/41973/jafe",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-90899",
+      "question": {
+        "id": 90899,
+        "url": "https://puzzling.stackexchange.com/questions/90899/a-shoe-in-the-safe",
+        "author": "rinspy",
+        "authorUrl": "https://puzzling.stackexchange.com/users/47407/rinspy",
+        "license": "CC BY-SA 4.0",
+        "title": "A shoe in the safe"
+      },
+      "answer": {
+        "id": 90900,
+        "url": "https://puzzling.stackexchange.com/a/90900",
+        "author": "hexomino",
+        "authorUrl": "https://puzzling.stackexchange.com/users/18422/hexomino",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-79328",
+      "question": {
+        "id": 79328,
+        "url": "https://puzzling.stackexchange.com/questions/79328/help-billy-retrieve-his-ball",
+        "author": "Nuclear Hoagie",
+        "authorUrl": "https://puzzling.stackexchange.com/users/12730/nuclear-hoagie",
+        "license": "CC BY-SA 4.0",
+        "title": "Help Billy retrieve his ball"
+      },
+      "answer": {
+        "id": 79329,
+        "url": "https://puzzling.stackexchange.com/a/79329",
+        "author": "R&#233;mi Henry",
+        "authorUrl": "https://puzzling.stackexchange.com/users/56494/r%c3%a9mi-henry",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-72338",
+      "question": {
+        "id": 72338,
+        "url": "https://puzzling.stackexchange.com/questions/72338/the-infiltrator",
+        "author": "Racso",
+        "authorUrl": "https://puzzling.stackexchange.com/users/52397/racso",
+        "license": "CC BY-SA 4.0",
+        "title": "The infiltrator"
+      },
+      "answer": {
+        "id": 72339,
+        "url": "https://puzzling.stackexchange.com/a/72339",
+        "author": "Weather Vane",
+        "authorUrl": "https://puzzling.stackexchange.com/users/51581/weather-vane",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-66488",
+      "question": {
+        "id": 66488,
+        "url": "https://puzzling.stackexchange.com/questions/66488/thats-what-she-said",
+        "author": "Goose",
+        "authorUrl": "https://puzzling.stackexchange.com/users/34530/goose",
+        "license": "CC BY-SA 4.0",
+        "title": "That&#39;s What SHE Said!"
+      },
+      "answer": {
+        "id": 66490,
+        "url": "https://puzzling.stackexchange.com/a/66490",
+        "author": "Kant1",
+        "authorUrl": "https://puzzling.stackexchange.com/users/48025/kant1",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-57801",
+      "question": {
+        "id": 57801,
+        "url": "https://puzzling.stackexchange.com/questions/57801/the-head-chef-and-the-mad-king",
+        "author": "rybo111",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9802/rybo111",
+        "license": "CC BY-SA 3.0",
+        "title": "The head chef and the mad king"
+      },
+      "answer": {
+        "id": 57803,
+        "url": "https://puzzling.stackexchange.com/a/57803",
+        "author": "J. Siebeneichler",
+        "authorUrl": "https://puzzling.stackexchange.com/users/30358/j-siebeneichler",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-17070",
+      "question": {
+        "id": 17070,
+        "url": "https://puzzling.stackexchange.com/questions/17070/a-world-twisted",
+        "author": "Alex",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10037/alex",
+        "license": "CC BY-SA 3.0",
+        "title": "A world twisted?"
+      },
+      "answer": {
+        "id": 17071,
+        "url": "https://puzzling.stackexchange.com/a/17071",
+        "author": "CodeNewbie",
+        "authorUrl": "https://puzzling.stackexchange.com/users/12700/codenewbie",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-16889",
+      "question": {
+        "id": 16889,
+        "url": "https://puzzling.stackexchange.com/questions/16889/dead-in-a-field",
+        "author": "Aggie Kidd",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9951/aggie-kidd",
+        "license": "CC BY-SA 3.0",
+        "title": "Dead in a Field"
+      },
+      "answer": {
+        "id": 16892,
+        "url": "https://puzzling.stackexchange.com/a/16892",
+        "author": "Rand al&#39;Thor",
+        "authorUrl": "https://puzzling.stackexchange.com/users/5373/rand-althor",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-16240",
+      "question": {
+        "id": 16240,
+        "url": "https://puzzling.stackexchange.com/questions/16240/disaster-in-madrid",
+        "author": "Rand al&#39;Thor",
+        "authorUrl": "https://puzzling.stackexchange.com/users/5373/rand-althor",
+        "license": "CC BY-SA 3.0",
+        "title": "Disaster in Madrid!"
+      },
+      "answer": {
+        "id": 16241,
+        "url": "https://puzzling.stackexchange.com/a/16241",
+        "author": "PirateSoul",
+        "authorUrl": "https://puzzling.stackexchange.com/users/12645/piratesoul",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-3839",
+      "question": {
+        "id": 3839,
+        "url": "https://puzzling.stackexchange.com/questions/3839/race-of-patience-for-the-sake-of-love",
+        "author": "Umur Kontacı",
+        "authorUrl": "https://puzzling.stackexchange.com/users/4755/umur-kontac%c4%b1",
+        "license": "CC BY-SA 3.0",
+        "title": "Race of patience for the sake of love"
+      },
+      "answer": {
+        "id": 3840,
+        "url": "https://puzzling.stackexchange.com/a/3840",
+        "author": "Rohinb97",
+        "authorUrl": "https://puzzling.stackexchange.com/users/2808/rohinb97",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-12990",
+      "question": {
+        "id": 12990,
+        "url": "https://puzzling.stackexchange.com/questions/12990/driving-from-london-to-paris-to-berlin",
+        "author": "user88",
+        "authorUrl": null,
+        "license": "CC BY-SA 3.0",
+        "title": "Driving from London to Paris to Berlin"
+      },
+      "answer": {
+        "id": 12997,
+        "url": "https://puzzling.stackexchange.com/a/12997",
+        "author": "Aggie Kidd",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9951/aggie-kidd",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-16460",
+      "question": {
+        "id": 16460,
+        "url": "https://puzzling.stackexchange.com/questions/16460/how-did-the-police-know",
+        "author": "Aggie Kidd",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9951/aggie-kidd",
+        "license": "CC BY-SA 4.0",
+        "title": "How did the police know?"
+      },
+      "answer": {
+        "id": 16461,
+        "url": "https://puzzling.stackexchange.com/a/16461",
+        "author": "A.D.",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10400/a-d",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-105855",
+      "question": {
+        "id": 105855,
+        "url": "https://puzzling.stackexchange.com/questions/105855/explain-this-bad-parking-job",
+        "author": "FlanMan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/61364/flanman",
+        "license": "CC BY-SA 4.0",
+        "title": "Explain this bad parking job"
+      },
+      "answer": {
+        "id": 105859,
+        "url": "https://puzzling.stackexchange.com/a/105859",
+        "author": "Tom",
+        "authorUrl": "https://puzzling.stackexchange.com/users/19547/tom",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-87953",
+      "question": {
+        "id": 87953,
+        "url": "https://puzzling.stackexchange.com/questions/87953/the-case-of-the-pranking-snowplow",
+        "author": "FlanMan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/61364/flanman",
+        "license": "CC BY-SA 4.0",
+        "title": "The case of the pranking snowplow"
+      },
+      "answer": {
+        "id": 87954,
+        "url": "https://puzzling.stackexchange.com/a/87954",
+        "author": "msh210",
+        "authorUrl": "https://puzzling.stackexchange.com/users/93/msh210",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-86301",
+      "question": {
+        "id": 86301,
+        "url": "https://puzzling.stackexchange.com/questions/86301/three-subway-escalators",
+        "author": "FlanMan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/61364/flanman",
+        "license": "CC BY-SA 4.0",
+        "title": "Three Subway Escalators"
+      },
+      "answer": {
+        "id": 86302,
+        "url": "https://puzzling.stackexchange.com/a/86302",
+        "author": "2012rcampion",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9718/2012rcampion",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-24120",
+      "question": {
+        "id": 24120,
+        "url": "https://puzzling.stackexchange.com/questions/24120/car-hotter-in-winter",
+        "author": "dotancohen",
+        "authorUrl": "https://puzzling.stackexchange.com/users/6116/dotancohen",
+        "license": "CC BY-SA 4.0",
+        "title": "Car hotter in winter"
+      },
+      "answer": {
+        "id": 24121,
+        "url": "https://puzzling.stackexchange.com/a/24121",
+        "author": "GentlePurpleRain",
+        "authorUrl": "https://puzzling.stackexchange.com/users/4421/gentlepurplerain",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-3859",
+      "question": {
+        "id": 3859,
+        "url": "https://puzzling.stackexchange.com/questions/3859/man-shot-from-inside-car-how-did-the-killer-escape",
+        "author": "zzzzBov",
+        "authorUrl": "https://puzzling.stackexchange.com/users/2694/zzzzbov",
+        "license": "CC BY-SA 3.0",
+        "title": "Man shot from inside car - how did the killer escape?"
+      },
+      "answer": {
+        "id": 3864,
+        "url": "https://puzzling.stackexchange.com/a/3864",
+        "author": "Kenshin",
+        "authorUrl": "https://puzzling.stackexchange.com/users/97/kenshin",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-14963",
+      "question": {
+        "id": 14963,
+        "url": "https://puzzling.stackexchange.com/questions/14963/the-bucket-of-sand",
+        "author": "TheWamts",
+        "authorUrl": "https://puzzling.stackexchange.com/users/12429/thewamts",
+        "license": "CC BY-SA 3.0",
+        "title": "The Bucket of Sand"
+      },
+      "answer": {
+        "id": 14966,
+        "url": "https://puzzling.stackexchange.com/a/14966",
+        "author": "leoll2",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10281/leoll2",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-59188",
+      "question": {
+        "id": 59188,
+        "url": "https://puzzling.stackexchange.com/questions/59188/guy-who-understands-if-a-diamond-is-genuine-by-just-looking-at-it",
+        "author": "padawan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/18645/padawan",
+        "license": "CC BY-SA 3.0",
+        "title": "Guy who understands if a diamond is genuine by just looking at it"
+      },
+      "answer": {
+        "id": 59191,
+        "url": "https://puzzling.stackexchange.com/a/59191",
+        "author": "Sneftel",
+        "authorUrl": "https://puzzling.stackexchange.com/users/4833/sneftel",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-66509",
+      "question": {
+        "id": 66509,
+        "url": "https://puzzling.stackexchange.com/questions/66509/a-pleasant-story",
+        "author": "Chess960",
+        "authorUrl": "https://puzzling.stackexchange.com/users/49683/chess960",
+        "license": "CC BY-SA 4.0",
+        "title": "A Pleasant Story"
+      },
+      "answer": {
+        "id": 66513,
+        "url": "https://puzzling.stackexchange.com/a/66513",
+        "author": "noedne",
+        "authorUrl": "https://puzzling.stackexchange.com/users/48337/noedne",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-11908",
+      "question": {
+        "id": 11908,
+        "url": "https://puzzling.stackexchange.com/questions/11908/fire-in-a-crowded-theatre",
+        "author": "user88",
+        "authorUrl": null,
+        "license": "CC BY-SA 3.0",
+        "title": "Fire in a crowded theatre"
+      },
+      "answer": {
+        "id": 11911,
+        "url": "https://puzzling.stackexchange.com/a/11911",
+        "author": "leoll2",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10281/leoll2",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-92468",
+      "question": {
+        "id": 92468,
+        "url": "https://puzzling.stackexchange.com/questions/92468/the-death-recording",
+        "author": "Quark-epoch",
+        "authorUrl": "https://puzzling.stackexchange.com/users/51989/quark-epoch",
+        "license": "CC BY-SA 4.0",
+        "title": "The Death Recording"
+      },
+      "answer": {
+        "id": 92471,
+        "url": "https://puzzling.stackexchange.com/a/92471",
+        "author": "Rand al&#39;Thor",
+        "authorUrl": "https://puzzling.stackexchange.com/users/5373/rand-althor",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-71061",
+      "question": {
+        "id": 71061,
+        "url": "https://puzzling.stackexchange.com/questions/71061/mysterious-murder",
+        "author": "thejudge333",
+        "authorUrl": "https://puzzling.stackexchange.com/users/52001/thejudge333",
+        "license": "CC BY-SA 4.0",
+        "title": "Mysterious Murder"
+      },
+      "answer": {
+        "id": 71062,
+        "url": "https://puzzling.stackexchange.com/a/71062",
+        "author": "Bennett Bernardoni",
+        "authorUrl": "https://puzzling.stackexchange.com/users/51458/bennett-bernardoni",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-55676",
+      "question": {
+        "id": 55676,
+        "url": "https://puzzling.stackexchange.com/questions/55676/suicide-from-a-window",
+        "author": "Caden-Riddles",
+        "authorUrl": "https://puzzling.stackexchange.com/users/41339/caden-riddles",
+        "license": "CC BY-SA 4.0",
+        "title": "&quot;suicide&quot; from a window"
+      },
+      "answer": {
+        "id": 55677,
+        "url": "https://puzzling.stackexchange.com/a/55677",
+        "author": "Walt",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10216/walt",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-106050",
+      "question": {
+        "id": 106050,
+        "url": "https://puzzling.stackexchange.com/questions/106050/why-did-the-number-of-islands-change",
+        "author": "FlanMan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/61364/flanman",
+        "license": "CC BY-SA 4.0",
+        "title": "Why did the number of islands change?"
+      },
+      "answer": {
+        "id": 106051,
+        "url": "https://puzzling.stackexchange.com/a/106051",
+        "author": "Weather Vane",
+        "authorUrl": "https://puzzling.stackexchange.com/users/51581/weather-vane",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-36343",
+      "question": {
+        "id": 36343,
+        "url": "https://puzzling.stackexchange.com/questions/36343/an-extra-fathers-day",
+        "author": "TTT",
+        "authorUrl": "https://puzzling.stackexchange.com/users/17024/ttt",
+        "license": "CC BY-SA 3.0",
+        "title": "An extra Father&#39;s Day"
+      },
+      "answer": {
+        "id": 36346,
+        "url": "https://puzzling.stackexchange.com/a/36346",
+        "author": "Business Cat",
+        "authorUrl": "https://puzzling.stackexchange.com/users/22168/business-cat",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-87814",
+      "question": {
+        "id": 87814,
+        "url": "https://puzzling.stackexchange.com/questions/87814/two-men-on-a-road",
+        "author": "Nuclear Hoagie",
+        "authorUrl": "https://puzzling.stackexchange.com/users/12730/nuclear-hoagie",
+        "license": "CC BY-SA 4.0",
+        "title": "Two men on a road"
+      },
+      "answer": {
+        "id": 87815,
+        "url": "https://puzzling.stackexchange.com/a/87815",
+        "author": "TwoBitOperation",
+        "authorUrl": "https://puzzling.stackexchange.com/users/29430/twobitoperation",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-110522",
+      "question": {
+        "id": 110522,
+        "url": "https://puzzling.stackexchange.com/questions/110522/case-of-punctured-tyre",
+        "author": "Mritunjay Kumar",
+        "authorUrl": "https://puzzling.stackexchange.com/users/75023/mritunjay-kumar",
+        "license": "CC BY-SA 4.0",
+        "title": "Case of Punctured Tyre"
+      },
+      "answer": {
+        "id": 110523,
+        "url": "https://puzzling.stackexchange.com/a/110523",
+        "author": "El-Guest",
+        "authorUrl": "https://puzzling.stackexchange.com/users/50778/el-guest",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-58046",
+      "question": {
+        "id": 58046,
+        "url": "https://puzzling.stackexchange.com/questions/58046/why-did-mr-jack-not-stop-the-stranger",
+        "author": "IQ WANTER",
+        "authorUrl": "https://puzzling.stackexchange.com/users/43403/iq-wanter",
+        "license": "CC BY-SA 3.0",
+        "title": "Why did Mr. Jack not stop the stranger?"
+      },
+      "answer": {
+        "id": 58048,
+        "url": "https://puzzling.stackexchange.com/a/58048",
+        "author": "Secret",
+        "authorUrl": "https://puzzling.stackexchange.com/users/43340/secret",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-97732",
+      "question": {
+        "id": 97732,
+        "url": "https://puzzling.stackexchange.com/questions/97732/predicting-the-future",
+        "author": "Chess960",
+        "authorUrl": "https://puzzling.stackexchange.com/users/49683/chess960",
+        "license": "CC BY-SA 4.0",
+        "title": "Predicting the future?"
+      },
+      "answer": {
+        "id": 97734,
+        "url": "https://puzzling.stackexchange.com/a/97734",
+        "author": "Stratos",
+        "authorUrl": "https://puzzling.stackexchange.com/users/67907/stratos",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-16276",
+      "question": {
+        "id": 16276,
+        "url": "https://puzzling.stackexchange.com/questions/16276/the-best-barber-in-town",
+        "author": "Wouter",
+        "authorUrl": "https://puzzling.stackexchange.com/users/12218/wouter",
+        "license": "CC BY-SA 3.0",
+        "title": "The best barber in town"
+      },
+      "answer": {
+        "id": 16279,
+        "url": "https://puzzling.stackexchange.com/a/16279",
+        "author": "Sebastian Volke",
+        "authorUrl": "https://puzzling.stackexchange.com/users/13140/sebastian-volke",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-46990",
+      "question": {
+        "id": 46990,
+        "url": "https://puzzling.stackexchange.com/questions/46990/the-broken-crosswalk-timer",
+        "author": "Mike Ball",
+        "authorUrl": "https://puzzling.stackexchange.com/users/30379/mike-ball",
+        "license": "CC BY-SA 4.0",
+        "title": "The broken crosswalk timer"
+      },
+      "answer": {
+        "id": 46991,
+        "url": "https://puzzling.stackexchange.com/a/46991",
+        "author": "ColdFrog",
+        "authorUrl": "https://puzzling.stackexchange.com/users/20010/coldfrog",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-114639",
+      "question": {
+        "id": 114639,
+        "url": "https://puzzling.stackexchange.com/questions/114639/peter-the-puzzling-plumber",
+        "author": "FlanMan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/61364/flanman",
+        "license": "CC BY-SA 4.0",
+        "title": "Peter the Puzzling Plumber"
+      },
+      "answer": {
+        "id": 114733,
+        "url": "https://puzzling.stackexchange.com/a/114733",
+        "author": "FlanMan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/61364/flanman",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-71488",
+      "question": {
+        "id": 71488,
+        "url": "https://puzzling.stackexchange.com/questions/71488/mysterious-trams",
+        "author": "Swiss Frank",
+        "authorUrl": "https://puzzling.stackexchange.com/users/19220/swiss-frank",
+        "license": "CC BY-SA 4.0",
+        "title": "Mysterious Trams"
+      },
+      "answer": {
+        "id": 71631,
+        "url": "https://puzzling.stackexchange.com/a/71631",
+        "author": "konvas",
+        "authorUrl": "https://puzzling.stackexchange.com/users/52231/konvas",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-86775",
+      "question": {
+        "id": 86775,
+        "url": "https://puzzling.stackexchange.com/questions/86775/tricky-tropical-water-temperatures",
+        "author": "FlanMan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/61364/flanman",
+        "license": "CC BY-SA 4.0",
+        "title": "Tricky Tropical Water Temperatures"
+      },
+      "answer": {
+        "id": 86889,
+        "url": "https://puzzling.stackexchange.com/a/86889",
+        "author": "Stiv",
+        "authorUrl": "https://puzzling.stackexchange.com/users/60644/stiv",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-86155",
+      "question": {
+        "id": 86155,
+        "url": "https://puzzling.stackexchange.com/questions/86155/how-did-the-prisoner-escape-from-the-police-car",
+        "author": "FlanMan",
+        "authorUrl": "https://puzzling.stackexchange.com/users/61364/flanman",
+        "license": "CC BY-SA 4.0",
+        "title": "How did the prisoner escape from the police car?"
+      },
+      "answer": {
+        "id": 86163,
+        "url": "https://puzzling.stackexchange.com/a/86163",
+        "author": "JS1",
+        "authorUrl": "https://puzzling.stackexchange.com/users/4479/js1",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-54645",
+      "question": {
+        "id": 54645,
+        "url": "https://puzzling.stackexchange.com/questions/54645/is-there-a-stain-or-not",
+        "author": "Mea Culpa Nay",
+        "authorUrl": "https://puzzling.stackexchange.com/users/38194/mea-culpa-nay",
+        "license": "CC BY-SA 3.0",
+        "title": "Is there a stain or not?"
+      },
+      "answer": {
+        "id": 54648,
+        "url": "https://puzzling.stackexchange.com/a/54648",
+        "author": "Wen1now",
+        "authorUrl": "https://puzzling.stackexchange.com/users/32642/wen1now",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-10551",
+      "question": {
+        "id": 10551,
+        "url": "https://puzzling.stackexchange.com/questions/10551/man-s-best-friend",
+        "author": "Tosen",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10267/tosen",
+        "license": "CC BY-SA 3.0",
+        "title": "Man’s Best Friend"
+      },
+      "answer": {
+        "id": 10553,
+        "url": "https://puzzling.stackexchange.com/a/10553",
+        "author": "JakeRobb",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10341/jakerobb",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-15209",
+      "question": {
+        "id": 15209,
+        "url": "https://puzzling.stackexchange.com/questions/15209/how-did-the-man-hang-himself",
+        "author": "Aggie Kidd",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9951/aggie-kidd",
+        "license": "CC BY-SA 3.0",
+        "title": "How did the man hang himself?"
+      },
+      "answer": {
+        "id": 15213,
+        "url": "https://puzzling.stackexchange.com/a/15213",
+        "author": "Engineer Toast",
+        "authorUrl": "https://puzzling.stackexchange.com/users/9000/engineer-toast",
+        "license": "CC BY-SA 4.0"
+      }
+    },
+    {
+      "id": "pse-11302",
+      "question": {
+        "id": 11302,
+        "url": "https://puzzling.stackexchange.com/questions/11302/how-did-the-inspector-know-that-the-report-was-fake",
+        "author": "Mox Shah",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10820/mox-shah",
+        "license": "CC BY-SA 3.0",
+        "title": "How did the inspector know that the report was fake?"
+      },
+      "answer": {
+        "id": 11304,
+        "url": "https://puzzling.stackexchange.com/a/11304",
+        "author": "user2408578",
+        "authorUrl": "https://puzzling.stackexchange.com/users/10433/user2408578",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-1987",
+      "question": {
+        "id": 1987,
+        "url": "https://puzzling.stackexchange.com/questions/1987/miss-danner-and-the-elmer-boys",
+        "author": "355durch113",
+        "authorUrl": "https://puzzling.stackexchange.com/users/1910/355durch113",
+        "license": "CC BY-SA 3.0",
+        "title": "Miss Danner and the Elmer Boys"
+      },
+      "answer": {
+        "id": 1988,
+        "url": "https://puzzling.stackexchange.com/a/1988",
+        "author": "Cain",
+        "authorUrl": "https://puzzling.stackexchange.com/users/1968/cain",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-43939",
+      "question": {
+        "id": 43939,
+        "url": "https://puzzling.stackexchange.com/questions/43939/the-commuters-journey",
+        "author": "paolo",
+        "authorUrl": "https://puzzling.stackexchange.com/users/30556/paolo",
+        "license": "CC BY-SA 3.0",
+        "title": "The commuter&#39;s journey"
+      },
+      "answer": {
+        "id": 43960,
+        "url": "https://puzzling.stackexchange.com/a/43960",
+        "author": "user2390246",
+        "authorUrl": "https://puzzling.stackexchange.com/users/20466/user2390246",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-40246",
+      "question": {
+        "id": 40246,
+        "url": "https://puzzling.stackexchange.com/questions/40246/the-restaurant-water-incident",
+        "author": "Jason_",
+        "authorUrl": "https://puzzling.stackexchange.com/users/21069/jason",
+        "license": "CC BY-SA 4.0",
+        "title": "The restaurant water incident"
+      },
+      "answer": {
+        "id": 40249,
+        "url": "https://puzzling.stackexchange.com/a/40249",
+        "author": "lois6b",
+        "authorUrl": "https://puzzling.stackexchange.com/users/26960/lois6b",
+        "license": "CC BY-SA 3.0"
+      }
+    },
+    {
+      "id": "pse-27",
+      "question": {
+        "id": 27,
+        "url": "https://puzzling.stackexchange.com/questions/27/which-switch-goes-to-which-bulb",
+        "author": "Xynariz",
+        "authorUrl": "https://puzzling.stackexchange.com/users/11/xynariz",
+        "license": "CC BY-SA 4.0",
+        "title": "Which switch goes to which bulb?"
+      },
+      "answer": {
+        "id": 28,
+        "url": "https://puzzling.stackexchange.com/a/28",
+        "author": "Xynariz",
+        "authorUrl": "https://puzzling.stackexchange.com/users/11/xynariz",
+        "license": "CC BY-SA 3.0"
+      }
+    }
+  ]
+}
