@@ -5,53 +5,43 @@ description: Follow static SPA and core-package boundaries, SolidJS 1 / atom-sol
 
 # Project Architecture
 
-## Ownership
+## Domain and Effect
 
-- Inspect the affected source and configuration before changing behavior.
-- `packages/core` owns domain schemas, rules, session state (`session.ts`), settings use cases and the SettingsStorage service contract (`settings.ts`), official DecisionModel provider contracts, official TypeSafe API integration, model-management interfaces and question/solution use cases. `apps/web` owns rendering, the runtime/Solid/DOM adapter, static puzzle JSON and the localStorage-backed `SettingsStorageLive`.
-- Core has no Solid, DOM or localStorage dependency. Its submission use cases return only player-visible content and game status; UI must not build payloads, map model answers to labels or receive hidden facts from those use cases.
-- Remain a pure static SPA: no SSR, server functions, backend, proxy, database, authentication or router.
-- Browser calls the full user-configured endpoint with their key. Validate untrusted answers, display fixed labels, and reveal neither truth nor judgmentPoints before ending the game. Partial solutions never identify missing facts.
+- Core owns schemas, scoring, session state, settings and Decision use cases; web renders their player-visible results, not payloads or model-label mappings.
+- Derive domain types from Schema. Use Option for absence/session errors, role-discriminated messages (only user messages have mode), exhaustive Match for domain branches and tagged failures distinct from interruption/defects.
+- Keep one canonical Effect workflow, executed at the web boundary; pure scoring stays synchronous. Use installed APIs and workspace catalog versions, not parallel Promise implementations or speculative services.
+- `session.ts` owns SubscriptionRef state, scoped Fibers and immediate duplicate/identity guards. Keep PuzzleDefinition internal; expose PuzzleView and ended-only Option<GameResult>, never judgmentPoints. Partial solutions must not reveal missing facts.
+- Judgment-point IDs/descriptions must be nonblank; IDs, not descriptions, must be unique per puzzle. Snapshot mutable inputs before async work; readonly types do not freeze aliases.
 
-## Effect boundaries
+## Providers and settings
 
-- Prefer the installed Effect APIs for effectful workflows and data processing, not Promise implementations wrapped merely for appearance. Keep one canonical Effect API; execute it at the web boundary. Keep pure scoring synchronous and dependencies acyclic.
-- Define domain types from Schema rather than maintaining duplicate interfaces. Use Option for domain absence and session errors, the role-discriminated Message union (only user messages have mode), and exhaustive Match for domain mode/result branches. Keep tagged failures distinct from optional error display state.
-- `DecisionSettings` is the legacy-compatible draft/storage shape, not runtime credentials. `resolveDecisionConfiguration` returns a provider-discriminated `DecisionConfiguration`: API url/model/Redacted key or local modelId/backend. Preserve missing-field defaults and blank draft loading; Redacted does not encrypt storage. `saveSettings` validates/normalizes before writing; apply only after successful storage.
-- Game use cases depend on official `effect/ai` DecisionModel and Decision definitions. API uses DecisionModelLayer/Live; local uses LayaDecisionModelLayer. API uses official @effect/ai-typesafe with the complete TypeSafe protocol; preserve full endpoint settings via HTTP request URL transformation. Validate configuration at Layer construction and responses with HttpClient/Schema.
-- API responses require top-level model and choice confidence/probabilities; state is encoded JSON, not a stringified JSON object. Use official TypeSafeClient.layer and TypeSafeDecisionModel.layer; do not recreate systemOne or its schemas. Keep local-model conversion separate from the API protocol. Local model one-hot distributions are not measured probabilities. Do not reinterpret it as confidence or alter label-based all-points scoring. apiModel is configurable; preserve the default for old settings.
-- `session.ts` owns SubscriptionRef state, scoped Fibers and Ref-backed identity/duplicate guards. Keep full PuzzleDefinition internal; expose only PuzzleView and Option<GameResult> (truth/reason after solve/reveal), never judgmentPoints in snapshots. Point id/description must be nonblank and point IDs unique within a puzzle; descriptions need not be unique.
-- Web owns one AtomRegistry per game owner and reads snapshots through atom-solid RegistryContext/useAtomValue. Keep one ManagedRuntime per configuration; replacement cancels requests and disposes the old runtime without resetting the session. Cleanup cancels work, disposes registry, closes session Scope and disposes runtime. Configuration tests use a separate temporary Layer; scoped local-model acquisition must release resources.
-- Keep a few management use cases: saveSettings, testDecisionConfiguration via DecisionConfigurationTester, and prepareLocalModel via LocalModelResources (inspect/download/reinspect). inspect/download/remove are capabilities; do not mechanically turn every button into a use case. Browser adapters implement these interfaces outside core.
-- API settings expose Test connection using unsaved drafts; success does not save/apply or replace the game runtime. Edit/provider change/close/cleanup aborts tests and suppresses stale feedback.
-- Disable HttpClient.TracerPropagationEnabled only for API calls: active spans otherwise inject b3/traceparent, which some endpoints reject in CORS preflight. Keep local tracing enabled. Request policy must include response body decoding in its Scope and timeout; official client Layers do not set these application policies.
-- Preserve HTTP(S)-only endpoints without userinfo, omitted credentials, rejected redirects, 30-second timeout, requested answer IDs/allowed choices and finite confidence in [0, 1]. Static schemas do not replace dynamic request-dependent validation.
-- Use tagged errors; keep interruption/defects distinct and guard late completion/finalizers by identity. Snapshot mutable inputs across async work. Schema readonly arrays do not freeze aliases.
-- Maintain shared versions in the workspace catalog; verify installed exports and peer requirements. Solid 1 and @effect/atom-solid are installed; do not restore obsolete Solid 2 scheduling workarounds.
+- Gameplay uses official `effect/ai` Decision/DecisionModel: API DecisionModelLayer/Live or local LayaDecisionModelLayer. Compose official TypeSafeClient/TypeSafeDecisionModel Layers; do not recreate their protocol/services.
+- API uses the complete TypeSafe protocol: JSON-object state, top-level model and choice confidence/probabilities. Preserve configurable apiModel and the full endpoint via request URL transformation. Keep local one-hot conversion separate; it is not measured confidence and must not change all-points label scoring.
+- Validate configuration at Layer construction and untrusted responses at the boundary. Retain request-dependent ID/choice checks and finite confidence in [0, 1]; do not repeat guarantees already enforced upstream.
+- API policy: HTTP(S) endpoints without userinfo, omitted credentials, rejected redirects, 30-second timeout and scoped cleanup covering body decoding. Disable HttpClient.TracerPropagationEnabled for API calls to avoid cross-origin b3/traceparent headers; retain local tracing.
+- DecisionSettings is a legacy-compatible draft/storage shape with blank values and missing-field defaults. Resolve provider-discriminated DecisionConfiguration with a Redacted API key; Redacted does not encrypt storage. Validate/normalize before saving and apply only after successful storage.
+- Keep saveSettings, testDecisionConfiguration via DecisionConfigurationTester, and prepareLocalModel via LocalModelResources (inspect → download if needed → reinspect). Resource inspect/download/remove remain capabilities, not separate use cases; browser adapters stay outside core.
+- Connection tests use unsaved drafts and a temporary Layer, never save/apply or replace the game runtime. Edit/provider change/close/cleanup cancels tests and suppresses stale feedback.
 
-## UI and Solid 1
+## UI and lifetimes
 
-- Preserve Tailwind CSS through the Vite plugin and DaisyUI through CSS. Prefer their utilities/components; keep `index.css` limited to framework configuration, theme and essential global styles instead of custom UI classes.
-- Prefer HTML/CSS for local presentation state: radio `checked`, Tailwind `checked:` / `has:` variants, and native form validation. Use atom-solid for core snapshots and signals for DOM-local asynchronous feedback and shared presentation state; do not duplicate input values in signals unless reactive consumers need them.
-- Use native `<dialog>` with `showModal()`, `method="dialog"` close forms and the native close event; do not emulate modals with checkbox state. Missing API URL or key in API mode opens settings on initial load.
-- Desktop: viewport-bounded two columns, puzzle left and chat right; use `min-height: 0` and internal overflow so history does not lengthen the page. Narrow screens: compact stacked panels with independently scrollable content. Keep actions reachable.
-- Solving opens a native result dialog automatically. Closing preserves the solved game and visible truth; next puzzle resets dialog dismissal state. Give-up still reveals the truth and disables sending.
-- Keep immediate duplicate/stale-response guards in core and the adapter's runtime-acquisition identity; rendering state alone is not a request lock.
-- Conditionally mounted native dialogs currently open in guarded queueMicrotask callbacks and close on owner cleanup. Preserve the disposed guard so queued work cannot open an unmounted dialog; this is an actual DOM lifetime pattern, not a claim that Solid 1 lacks onMount.
-- Route give-up, reset and cancellation through core session commands; close its Scope on cleanup. Preserve identity checks for outdated responses and finalizers so they cannot change a new game. Dialog-local connection tests still abort on edit/close/cleanup; cover cancel / close / reset.
+- One AtomRegistry per game owner; read snapshots through RegistryContext/useAtomValue. Reuse one ManagedRuntime per configuration; replacement cancels/disposes the old runtime without resetting the session. Owner cleanup cancels work, disposes registry/runtime and closes the session Scope. Scoped model acquisition must release resources.
+- Route give-up/reset/cancel through core commands. Keep adapter runtime-acquisition identity and stale response/finalizer guards; rendered loading state is not a request lock.
+- Preserve Tailwind/DaisyUI. Prefer native HTML/CSS state and validation; use signals only for reactive UI state and atom-solid for session snapshots. Keep global CSS to framework setup, theme and essential styles.
+- Desktop: viewport-bounded puzzle/chat columns with internal scrolling and `min-height: 0`. Narrow screens: compact stacked panels; keep actions reachable.
+- Use native dialogs and close events. Missing API URL/key opens settings initially. Solving opens results; closing preserves the ended game/truth, next puzzle resets dismissal, and give-up reveals truth and disables sending.
+- Queued dialog opening must guard owner disposal; close dialogs on cleanup. Preserve keyboard/focus behavior, not checkbox-based modal emulation.
 
 ## Local model and cache
 
-- `packages/local-model` owns Worker-based Transformers.js loading, inference, testing/download and model-specific Cache Storage operations. Keep browser cache APIs out of core. Support only Laya fp16 on WASM and WebGPU; reject legacy non-Laya runtime configurations without silently falling back. Read old settings as drafts and never delete old model caches automatically.
-- Inspect actual cache completeness, not a localStorage downloaded flag. Cache inspection failure is unknown, not missing: show an error and retry. Download prepares assets; Use tests the selected backend and selects only after success; Save applies configuration separately. Reinspect cache on model change. Reopening with complete cache and matching saved model/backend shows 使用中; changing either requires testing again. Keep button busy labels, not a misleading percentage progress bar or bottom test button.
-- Transformers.js 4.3.1 rejects `local_files_only=true` with `env.allowLocalModels=false`. Cache-only inspection/loading must enable local lookup and gameplay must precheck completeness. Downloads must disable local lookup: static SPA fallback may return index HTML for `/models/...`, causing JSON.parse failures. Review global env changes when altering concurrent loading.
-- Delete only this model’s cache entries, including partial files, and verify deletion. Do not clear unrelated models or saved settings. Cache deletion does not unload an existing in-memory runtime; later model loading requires a new download. Keep downloads/cache isolated by model. Cancellation removes queued work and ignores active inference results; initialization cancellation, configuration replacement and disposal terminate the corresponding Worker. Closing settings cancels work and suppresses late feedback.
+- Support Laya fp16 on WASM/WebGPU through Workers. Read legacy settings as drafts but reject unsupported runtime models without fallback; never auto-delete old caches.
+- Inspect actual cache completeness. Inspection failure is an error/retry state, not missing. Download prepares assets; Use tests the selected backend and selects only on success; Save applies separately. Reinspect on model change. Show 使用中 only with complete cache and matching saved model/backend; changing either requires testing again.
+- Progress is per file, not an estimated overall percentage. Use a fixed-size filled action button and fixed two-line filename/bytes helper; unknown sizes, initialization and cache verification show a spinner/stage. Truncate filenames with a full title; do not add a separate bottom test button.
+- Cache-only lookup must enable `env.allowLocalModels` and gameplay must precheck completeness. Downloads disable local lookup to avoid SPA HTML fallback under `/models/...`. Serialize/review shared env changes during concurrent loading.
+- Delete only the selected model's entries, including partial files, and verify deletion. Preserve other caches/settings. Deletion does not unload an existing runtime; later loading needs another download.
+- Cancellation removes queued work and ignores active inference results; initialization cancellation, configuration replacement and disposal terminate the Worker. Closing settings cancels work and suppresses late feedback.
 
-## Static deployment
+## Deployment and verification
 
-- GitHub Pages deploys the web build through the existing workflow on `main`. Preserve relative Vite asset paths for repository subpaths; never put a user Jev key in Actions secrets or built assets.
-- Before committing new static data or tests, check that `.gitignore` does not exclude them. A local successful build cannot detect files missing from the remote checkout.
-
-## Completion
-
-Check failure retry, no premature truth disclosure, next-puzzle reset, dialog dismissal, panel overflow and keyboard accessibility. For dependency/architecture changes, compare build output with a measured baseline and report size cost rather than assuming Effect reduces the bundle. Read `README.md` for setup, Jev protocol and deployment; do not duplicate endpoint defaults here.
+- Preserve relative Vite asset paths for GitHub Pages subpaths; never include user keys in Actions or built assets. Check new data/tests are not ignored before committing.
+- Verify retry, hidden facts, reset/dialog dismissal, overflow and keyboard access on affected paths. Measure against a baseline before claiming bundle-size improvements; do not infer them from architecture or library choice.

@@ -1,4 +1,7 @@
-import type { LocalModelDefinition } from '@turtle-soup/core/model-management';
+import type {
+  LocalModelDefinition,
+  ModelDownloadProgress,
+} from '@turtle-soup/core/model-management';
 import type { DecisionSettings } from '@turtle-soup/core/types';
 import { type JSX, Show } from 'solid-js';
 
@@ -61,8 +64,25 @@ export function ApiSettings(props: {
   );
 }
 
+export function ApiTestButton(props: {
+  testing: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      class="btn btn-outline w-full"
+      disabled={props.testing}
+      onClick={props.onClick}
+    >
+      {props.testing ? '测试中…' : '测试连接'}
+    </button>
+  );
+}
+
 export function LocalSettings(props: {
   model: LocalModelDefinition;
+  downloadProgress?: ModelDownloadProgress | undefined;
   backend: 'wasm' | 'webgpu';
   testing: boolean;
   cached: boolean | null | undefined;
@@ -73,7 +93,25 @@ export function LocalSettings(props: {
   onAction: () => void;
   onRemove: () => void;
 }) {
+  const percent = () => {
+    const progress = props.downloadProgress;
+    if (
+      !progress ||
+      (progress.status && progress.status !== 'downloading') ||
+      progress.total <= 0
+    )
+      return undefined;
+
+    return Math.min(100, Math.floor((progress.loaded / progress.total) * 100));
+  };
+  const bytes = (value: number) => `${(value / 1_000_000).toFixed(1)} MB`;
+  const downloadLabel = () => {
+    if (props.downloadProgress?.status === 'initializing') return '初始化中…';
+    if (props.downloadProgress?.status === 'checking') return '检查缓存中…';
+    return percent() === undefined ? '连接 / 下载中…' : `下载中 ${percent()}%`;
+  };
   const actionLabel = () => {
+    if (props.downloadProgress) return downloadLabel();
     if (props.deleting) return '删除中…';
     if (props.cached === undefined) return '检查缓存中…';
     if (props.cached === null) return '重新检查缓存';
@@ -123,13 +161,35 @@ export function LocalSettings(props: {
         </p>
         <button
           type="button"
-          class="btn btn-outline btn-sm mt-3"
+          class="btn btn-outline btn-sm relative h-9 w-48 max-w-full overflow-hidden mt-3 disabled:text-base-content disabled:opacity-100"
           disabled={
             props.testing || props.cached === undefined || props.usingSavedModel
           }
           onClick={props.onAction}
         >
-          {actionLabel()}
+          <Show when={percent() !== undefined}>
+            <span
+              class="pointer-events-none absolute inset-y-0 left-0 bg-primary/20"
+              style={{ width: `${percent() ?? 0}%` }}
+              aria-hidden="true"
+            />
+          </Show>
+          <span
+            class="relative flex items-center justify-center gap-2"
+            role="progressbar"
+            aria-label={props.downloadProgress ? '当前文件下载进度' : undefined}
+            aria-valuemin={props.downloadProgress ? 0 : undefined}
+            aria-valuemax={props.downloadProgress ? 100 : undefined}
+            aria-valuenow={percent()}
+          >
+            <Show when={props.downloadProgress && percent() === undefined}>
+              <span
+                class="loading loading-spinner loading-xs"
+                aria-hidden="true"
+              />
+            </Show>
+            {actionLabel()}
+          </span>
         </button>
         <button
           type="button"
@@ -139,12 +199,44 @@ export function LocalSettings(props: {
         >
           删除缓存
         </button>
-        <p class="mt-2 text-xs">
-          {props.cached
-            ? '已下载。点击使用会测试当前后端，成功后选中此模型。'
-            : '下载只准备模型，不执行判定。'}
-          WebGPU 在部分 Firefox 上存在兼容问题，可改选 WASM。
-        </p>
+        <div class="mt-2 h-10 min-w-0 text-xs leading-5" aria-live="polite">
+          <Show
+            when={props.downloadProgress}
+            fallback={
+              <>
+                <p
+                  class="truncate"
+                  title="下载只准备模型；点击使用测试当前后端，成功后选中，再保存应用。"
+                >
+                  {props.cached
+                    ? '已下载。点击使用测试后，再保存应用。'
+                    : '下载只准备模型，不执行判定。'}
+                </p>
+                <p
+                  class="truncate"
+                  title="WebGPU 在部分 Firefox 上存在兼容问题，可改选 WASM。"
+                >
+                  Firefox WebGPU 如不兼容，可改选 WASM。
+                </p>
+              </>
+            }
+          >
+            {(progress) => (
+              <>
+                <p class="truncate" title={progress().file}>
+                  {progress().file
+                    ? `当前文件：${progress().file}`
+                    : '正在准备模型，请稍候…'}
+                </p>
+                <p class="truncate">
+                  {progress().file
+                    ? `${bytes(progress().loaded)}${progress().total > 0 ? ` / ${bytes(progress().total)}` : ' · 总大小未知'}`
+                    : '准备完成后可点击使用，测试当前后端。'}
+                </p>
+              </>
+            )}
+          </Show>
+        </div>
       </div>
     </>
   );

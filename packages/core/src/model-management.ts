@@ -34,6 +34,23 @@ export class ModelResourceError extends Schema.TaggedError<ModelResourceError>()
   { message: Schema.String }
 ) {}
 
+export const ModelDownloadProgress = Schema.Struct({
+  file: Schema.String,
+  loaded: Schema.Number.check(
+    Schema.isFinite(),
+    Schema.isGreaterThanOrEqualTo(0)
+  ),
+  total: Schema.Number.check(
+    Schema.isFinite(),
+    Schema.isGreaterThanOrEqualTo(0)
+  ),
+  status: Schema.optionalKey(
+    Schema.Literals(['downloading', 'initializing', 'checking'])
+  ),
+});
+
+export type ModelDownloadProgress = typeof ModelDownloadProgress.Type;
+
 export class LocalModelResources extends Context.Service<
   LocalModelResources,
   {
@@ -41,7 +58,8 @@ export class LocalModelResources extends Context.Service<
       modelId: string
     ) => Effect.Effect<ModelAvailability, ModelResourceError>;
     readonly download: (
-      modelId: string
+      modelId: string,
+      onProgress?: (progress: ModelDownloadProgress) => void
     ) => Effect.Effect<void, ModelResourceError>;
     readonly remove: (
       modelId: string
@@ -63,12 +81,16 @@ export class DecisionConfigurationTester extends Context.Service<
   }
 >()('@turtle-soup/core/DecisionConfigurationTester') {}
 
-export const prepareLocalModel = Effect.fnUntraced(function* (modelId: string) {
+export const prepareLocalModel = Effect.fnUntraced(function* (
+  modelId: string,
+  onProgress?: (progress: ModelDownloadProgress) => void
+) {
   const resources = yield* LocalModelResources;
   const availability = yield* resources.inspect(modelId);
   if (availability.tag === 'complete') return availability;
 
-  yield* resources.download(modelId);
+  yield* resources.download(modelId, onProgress);
+  onProgress?.({ file: '', loaded: 0, total: 0, status: 'checking' });
   const downloaded = yield* resources.inspect(modelId);
   if (downloaded.tag !== 'complete') {
     return yield* Effect.fail(

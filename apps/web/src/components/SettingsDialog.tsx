@@ -1,6 +1,7 @@
 import {
   LocalModelResources,
   localModelDefinitions,
+  type ModelDownloadProgress,
   prepareLocalModel,
   testDecisionConfiguration,
 } from '@turtle-soup/core/model-management';
@@ -8,14 +9,10 @@ import type { DecisionSettings } from '@turtle-soup/core/types';
 import { LocalModelResourcesLive } from '@turtle-soup/local-model/resources';
 import { Effect } from 'effect';
 import { createSignal, onCleanup, Show } from 'solid-js';
+import * as Download from '../lib/download-progress';
 import { DecisionConfigurationTesterLive } from '../lib/model-management';
 import { resourceOperation } from '../lib/resource-diagnostic';
-import {
-  ApiSettings,
-  LocalSettings,
-  ProviderSettings,
-  SettingsFormDialog,
-} from './DecisionSettingsFields';
+import * as Fields from './DecisionSettingsFields';
 import { readSettingsDraft, saveSettingsDraft } from './SettingsDraft';
 
 export function SettingsDialog(props: {
@@ -38,15 +35,11 @@ export function SettingsDialog(props: {
     props.settings.provider ?? 'api'
   );
   const [testing, setTesting] = createSignal(false);
+  const [downloadProgress, setDownloadProgress] =
+    createSignal<ModelDownloadProgress>();
   const [cached, setCached] = createSignal<boolean | null>();
   const [selected, setSelected] = createSignal(false);
   const [deleting, setDeleting] = createSignal(false);
-  const usingSavedModel = () =>
-    cached() === true &&
-    props.settings.provider === 'local' &&
-    provider() === 'local' &&
-    backend() === (props.settings.backend ?? 'wasm') &&
-    modelId === (props.settings.modelId ?? selectedModel.id);
   const [feedback, setFeedback] = createSignal('');
   const [error, setError] = createSignal('');
   let dialog: HTMLDialogElement | undefined;
@@ -68,6 +61,7 @@ export function SettingsDialog(props: {
     active = undefined;
     controller?.abort();
     setTesting(false);
+    setDownloadProgress(undefined);
     setDeleting(false);
     setFeedback('');
     setError('');
@@ -220,13 +214,17 @@ export function SettingsDialog(props: {
     setTesting(true);
     setError('');
     setFeedback('');
-    const preparingModelId = modelId;
+    setDownloadProgress({ file: '', loaded: 0, total: 0 });
+    const reportProgress = Download.downloadProgressReporter(
+      () => isCurrent(controller),
+      setDownloadProgress
+    );
     await Effect.runPromiseExit(
       resourceOperation(
-        prepareLocalModel(preparingModelId).pipe(
+        prepareLocalModel(modelId, reportProgress).pipe(
           Effect.provide(LocalModelResourcesLive)
         ),
-        preparingModelId,
+        modelId,
         'prepare',
         () => isCurrent(controller),
         setError,
@@ -241,11 +239,12 @@ export function SettingsDialog(props: {
       if (active === controller) {
         active = undefined;
         setTesting(false);
+        setDownloadProgress(undefined);
       }
     }
   };
   return (
-    <SettingsFormDialog
+    <Fields.SettingsFormDialog
       dialogRef={(element) => (dialog = element)}
       error={error()}
       feedback={feedback()}
@@ -258,7 +257,7 @@ export function SettingsDialog(props: {
         if (!disposed) props.onClose();
       }}
     >
-      <ProviderSettings
+      <Fields.ProviderSettings
         provider={provider()}
         selectRef={(element) => (providerSelect = element)}
         onChange={(value) => {
@@ -270,7 +269,7 @@ export function SettingsDialog(props: {
           }
         }}
       />
-      <ApiSettings
+      <Fields.ApiSettings
         settings={props.settings}
         local={provider() === 'local'}
         urlRef={(element) => (apiUrl = element)}
@@ -279,22 +278,22 @@ export function SettingsDialog(props: {
         onInput={invalidate}
       />
       <Show when={provider() === 'api'}>
-        <button
-          type="button"
-          class="btn btn-outline w-full"
-          disabled={testing()}
+        <Fields.ApiTestButton
+          testing={testing()}
           onClick={() => void test(true)}
-        >
-          {testing() ? '测试中…' : '测试连接'}
-        </button>
+        />
       </Show>
       <Show when={provider() === 'local'}>
-        <LocalSettings
+        <Fields.LocalSettings
           model={selectedModel}
+          downloadProgress={downloadProgress()}
           backend={backend()}
           testing={testing()}
           cached={cached()}
-          usingSavedModel={usingSavedModel()}
+          usingSavedModel={
+            cached() === true &&
+            Download.matchesSavedModel(props.settings, modelId, backend())
+          }
           deleting={deleting()}
           selected={selected()}
           onBackendChange={(value) => {
@@ -310,6 +309,6 @@ export function SettingsDialog(props: {
           onRemove={removeCache}
         />
       </Show>
-    </SettingsFormDialog>
+    </Fields.SettingsFormDialog>
   );
 }

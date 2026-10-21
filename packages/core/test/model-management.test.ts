@@ -165,3 +165,30 @@ it.effect('defines only Laya', () =>
     ).toEqual(model);
   })
 );
+
+it.effect(
+  'forwards file progress and reports cache verification after download',
+  () =>
+    Effect.gen(function* () {
+      const progress: unknown[] = [];
+      let complete = false;
+      yield* prepareLocalModel(modelId, (event) => progress.push(event)).pipe(
+        Effect.provide(
+          Layer.succeed(LocalModelResources, {
+            inspect: () =>
+              Effect.succeed({ tag: complete ? 'complete' : 'missing' }),
+            download: (_id, report) =>
+              Effect.sync(() => {
+                report?.({ file: 'model.onnx', loaded: 20, total: 100 });
+                complete = true;
+              }),
+            remove: () => Effect.void,
+          })
+        )
+      );
+      expect(progress).toEqual([
+        { file: 'model.onnx', loaded: 20, total: 100 },
+        { file: '', loaded: 0, total: 0, status: 'checking' },
+      ]);
+    })
+);

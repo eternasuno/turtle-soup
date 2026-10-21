@@ -20,6 +20,7 @@ vi.mock('../src/worker-client', () => ({
 }));
 
 const modelId = 'onnx-community/laya-multilingual-ONNX';
+
 const run = <A, E>(
   operation: (resources: LocalModelResources['Service']) => Effect.Effect<A, E>
 ) =>
@@ -38,16 +39,21 @@ it.each([true, false])('maps cache completeness %s', async (complete) => {
   });
 });
 
-it('downloads fp16 Laya with wasm, remote lookup and a signal, then disposes', async () => {
-  mocks.load.mockResolvedValue(undefined);
-  await run((resources) => resources.download(modelId));
+it('downloads with wasm, remote lookup and progress, then disposes', async () => {
+  const onProgress = vi.fn();
+  const progress = { file: 'model.onnx', loaded: 10, total: 100 };
+  mocks.load.mockImplementation(async (_backend, _signal, report) => {
+    report(progress);
+  });
+  await run((resources) => resources.download(modelId, onProgress));
   expect(mocks.load).toHaveBeenCalledWith(
     'wasm',
     expect.any(AbortSignal),
-    undefined,
+    onProgress,
     false,
     modelId
   );
+  expect(onProgress).toHaveBeenCalledWith(progress);
   expect(mocks.dispose).toHaveBeenCalledOnce();
 });
 

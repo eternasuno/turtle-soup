@@ -10,6 +10,7 @@ import {
   DecisionRequest,
   type DecisionRequest as DecisionRequestType,
 } from '@turtle-soup/core/decision-schema';
+import type { ModelDownloadProgress } from '@turtle-soup/core/model-management';
 import { Schema } from 'effect';
 import {
   type LayaConfig,
@@ -18,7 +19,7 @@ import {
   type Tokenizer,
 } from './laya-encoding';
 
-export type LayaProgress = { file: string; loaded: number; total: number };
+export type LayaProgress = ModelDownloadProgress;
 
 type LayaAssets = { config: LayaConfig; tokenizer: Tokenizer; model: Model };
 type LayaClient = {
@@ -206,18 +207,28 @@ function reportProgress(
     total?: number;
   }
 ) {
+  if (event.status === 'done') {
+    onProgress?.({ file: '', loaded: 0, total: 0, status: 'initializing' });
+    return;
+  }
+
   if (
-    event.status !== 'progress' ||
-    event.file === undefined ||
-    event.loaded === undefined ||
-    event.total === undefined
+    !['initiate', 'download', 'progress'].includes(event.status) ||
+    !event.file
   )
     return;
-  onProgress?.({
-    file: event.file,
-    loaded: event.loaded,
-    total: event.total,
-  });
+
+  const loaded = event.loaded ?? 0;
+  const total = event.total ?? 0;
+  if (
+    !Number.isFinite(loaded) ||
+    loaded < 0 ||
+    !Number.isFinite(total) ||
+    total < 0
+  )
+    return;
+
+  onProgress?.({ file: event.file, loaded, total });
 }
 
 async function acquireAssets(

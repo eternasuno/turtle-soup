@@ -174,11 +174,7 @@ it('rejects cache-only loading after cache deletion without fetching files', asy
 it('delegates cache-only model loading to one underlying cache inspection', async () => {
   setup();
   completeCache();
-  const model = await loadModel(
-    'onnx-community/laya-multilingual-ONNX',
-    'wasm',
-    true
-  );
+  const model = await loadModel('wasm', true);
 
   expect(mocks.modelFiles).toHaveBeenCalledTimes(1);
   expect(mocks.model).toHaveBeenCalledWith(
@@ -190,11 +186,7 @@ it('delegates cache-only model loading to one underlying cache inspection', asyn
 
 it('forces WASM for model downloads even when WebGPU is selected', async () => {
   setup();
-  const model = await loadModel(
-    'onnx-community/laya-multilingual-ONNX',
-    'webgpu',
-    false
-  );
+  const model = await loadModel('webgpu', false);
 
   expect(mocks.model).toHaveBeenCalledWith(
     expect.any(String),
@@ -294,4 +286,32 @@ it('preserves prototype-named answer IDs and choice probabilities', async () => 
   expect(answer.probabilities!['constructor']).toBeCloseTo(0.2689414214);
   expect(answer.confidence).toBe(answer.probabilities!['__proto__']);
   await laya.dispose();
+});
+
+it('reports file starts, unknown sizes and initialization without invalid bytes', async () => {
+  setup();
+  const progress = vi.fn();
+  mocks.model.mockImplementation(async (_id, options) => {
+    options.progress_callback({ status: 'initiate', file: 'model.onnx' });
+    options.progress_callback({
+      status: 'progress',
+      file: 'model.onnx',
+      loaded: 10,
+    });
+    options.progress_callback({
+      status: 'progress',
+      file: 'model.onnx',
+      loaded: NaN,
+      total: 20,
+    });
+    options.progress_callback({ status: 'done', file: 'model.onnx' });
+    return { dispose: vi.fn() };
+  });
+  const client = await loadLaya(progress);
+  expect(progress.mock.calls.map(([event]) => event)).toEqual([
+    { file: 'model.onnx', loaded: 0, total: 0 },
+    { file: 'model.onnx', loaded: 10, total: 0 },
+    { file: '', loaded: 0, total: 0, status: 'initializing' },
+  ]);
+  await client.dispose();
 });

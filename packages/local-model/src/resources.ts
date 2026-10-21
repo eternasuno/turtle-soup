@@ -1,10 +1,10 @@
 import {
+  type LocalModelDefinition,
   LocalModelResources,
   localModelDefinitions,
   ModelResourceError,
 } from '@turtle-soup/core/model-management';
-import { LocalModelId } from '@turtle-soup/core/types';
-import { Effect, Layer, Schema } from 'effect';
+import { Effect, Layer } from 'effect';
 import { createLayaWorker } from './worker-client';
 
 const resourceError = (cause: unknown) =>
@@ -13,12 +13,17 @@ const resourceError = (cause: unknown) =>
       cause instanceof Error ? cause.message : '模型资源操作失败，请重试。',
   });
 
-const supportedModel = (modelId: string) =>
-  localModelDefinitions.some((model) => model.id === modelId)
-    ? Effect.void
+const supportedModel = (
+  modelId: string
+): Effect.Effect<LocalModelDefinition['id'], ModelResourceError> => {
+  const model = localModelDefinitions.find((model) => model.id === modelId);
+
+  return model
+    ? Effect.succeed(model.id)
     : Effect.fail(
         new ModelResourceError({ message: `不支持的本地模型：${modelId}` })
       );
+};
 
 export const LocalModelResourcesLive = Layer.succeed(LocalModelResources, {
   inspect: (modelId) =>
@@ -36,20 +41,14 @@ export const LocalModelResourcesLive = Layer.succeed(LocalModelResources, {
         })
       )
     ),
-  download: (modelId) =>
+  download: (modelId, onProgress) =>
     supportedModel(modelId).pipe(
-      Effect.andThen(
+      Effect.andThen((id) =>
         Effect.tryPromise({
           try: async (signal) => {
             const worker = createLayaWorker();
             try {
-              await worker.load(
-                'wasm',
-                signal,
-                undefined,
-                false,
-                Schema.decodeUnknownSync(LocalModelId)(modelId)
-              );
+              await worker.load('wasm', signal, onProgress, false, id);
             } finally {
               worker.dispose();
             }

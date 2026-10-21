@@ -2,6 +2,7 @@ import {
   ChoiceAnswer,
   DecisionRequest,
 } from '@turtle-soup/core/decision-schema';
+import { ModelDownloadProgress } from '@turtle-soup/core/model-management';
 import { LocalModelId } from '@turtle-soup/core/types';
 import { Schema } from 'effect';
 
@@ -28,17 +29,7 @@ export type WorkerCommand = typeof WorkerCommand.Type;
 
 export const WorkerAnswers = Schema.Record(Schema.String, ChoiceAnswer);
 
-export const WorkerProgress = Schema.Struct({
-  file: Schema.String,
-  loaded: Schema.Number.check(
-    Schema.isFinite(),
-    Schema.isGreaterThanOrEqualTo(0)
-  ),
-  total: Schema.Number.check(
-    Schema.isFinite(),
-    Schema.isGreaterThanOrEqualTo(0)
-  ),
-});
+export const WorkerProgress = ModelDownloadProgress;
 
 export const WorkerResponse = Schema.Union([
   Schema.Struct({

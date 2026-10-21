@@ -11,8 +11,11 @@ const scope = globalThis as unknown as {
     listener: (event: MessageEvent<unknown>) => void
   ): void;
 };
+
 const queued = new Map<number, Operation>();
+
 let running = false;
+
 let model: Awaited<ReturnType<typeof loadModel>> | undefined;
 
 function post(response: WorkerResponse) {
@@ -24,13 +27,11 @@ async function execute(command: Operation) {
     if (command.type === 'init') {
       if (model) throw new Error('Laya worker is already initialized');
 
-      model = await loadModel(
-        command.modelId ?? 'onnx-community/laya-multilingual-ONNX',
-        command.backend,
-        command.cacheOnly,
-        (progress) => post({ type: 'progress', id: command.id, progress })
+      model = await loadModel(command.backend, command.cacheOnly, (progress) =>
+        post({ type: 'progress', id: command.id, progress })
       );
       post({ type: 'success', id: command.id, value: undefined });
+
       return;
     }
 
@@ -65,6 +66,7 @@ scope.addEventListener('message', (event) => {
   const command = Schema.decodeUnknownSync(WorkerCommand)(event.data);
   if (command.type === 'cancel') {
     queued.delete(command.id);
+
     return;
   }
 

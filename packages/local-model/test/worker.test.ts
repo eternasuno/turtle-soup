@@ -200,12 +200,7 @@ it('runs worker requests serially and skips canceled queued requests', async () 
       value: undefined,
     })
   );
-  expect(load).toHaveBeenCalledWith(
-    'onnx-community/laya-multilingual-ONNX',
-    'webgpu',
-    true,
-    expect.any(Function)
-  );
+  expect(load).toHaveBeenCalledWith('webgpu', true, expect.any(Function));
   send({ type: 'request', id: 2, payload });
   send({ type: 'request', id: 3, payload });
   send({ type: 'request', id: 4, payload });
