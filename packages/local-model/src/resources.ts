@@ -5,7 +5,6 @@ import {
   ModelResourceError,
 } from '@turtle-soup/core/model-management';
 import { Effect, Layer } from 'effect';
-import { createLayaWorker } from './worker-client';
 
 const resourceError = (cause: unknown) =>
   new ModelResourceError({
@@ -43,15 +42,11 @@ export const LocalModelResourcesLive = Layer.succeed(LocalModelResources, {
     ),
   download: (modelId, onProgress) =>
     supportedModel(modelId).pipe(
-      Effect.andThen((id) =>
+      Effect.andThen(() =>
         Effect.tryPromise({
           try: async (signal) => {
-            const worker = createLayaWorker();
-            try {
-              await worker.load('wasm', signal, onProgress, false, id);
-            } finally {
-              worker.dispose();
-            }
+            const { downloadLaya } = await import('./laya');
+            await downloadLaya(signal, onProgress);
           },
           catch: resourceError,
         })

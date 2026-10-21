@@ -12,6 +12,7 @@ import {
 } from '@turtle-soup/core/decision-schema';
 import type { ModelDownloadProgress } from '@turtle-soup/core/model-management';
 import { Schema } from 'effect';
+import { downloadModelFiles } from './cache-download';
 import {
   type LayaConfig,
   type Model,
@@ -111,6 +112,13 @@ class LayaModel {
     this.modelDisposed = true;
     await this.model.dispose?.();
   }
+}
+
+export function downloadLaya(
+  signal: AbortSignal,
+  onProgress?: (progress: LayaProgress) => void
+): Promise<void> {
+  return coordinateAssets(() => downloadModelFiles(signal, onProgress));
 }
 
 export function deleteLayaCache(): Promise<void> {
