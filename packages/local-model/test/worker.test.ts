@@ -78,8 +78,6 @@ it.each(['wasm', 'webgpu'] as const)(
       id: 1,
       progress: { file: 'model', loaded: 1, total: 2 },
     });
-    worker.respond({ type: 'stage', id: 1, stage: 'load-started' });
-    worker.respond({ type: 'stage', id: 1, stage: 'load-completed' });
     worker.respond({ type: 'success', id: 1, value: undefined });
     await loading;
     expect(progress).toHaveBeenCalledWith({

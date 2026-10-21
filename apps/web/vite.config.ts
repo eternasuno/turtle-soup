@@ -6,16 +6,6 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   base: './',
   plugins: [solid({ ssr: false }), tailwindcss()],
-  build: {
-    rolldownOptions: {
-      input: {
-        main: fileURLToPath(new URL('./index.html', import.meta.url)),
-        modelRepro: fileURLToPath(
-          new URL('./model-repro.html', import.meta.url)
-        ),
-      },
-    },
-  },
   server: { port: 3000, strictPort: true },
   preview: { port: 3000, strictPort: true },
   test: {

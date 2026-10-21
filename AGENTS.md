@@ -14,7 +14,8 @@ Pure static turtle-soup SPA: SolidJS 1, @effect/atom-solid, TypeScript, Vite, Ta
 
 - [project-architecture](.agents/skills/project-architecture/SKILL.md): package boundaries, providers, settings, UI and resource lifetimes.
 - [project-testing](.agents/skills/project-testing/SKILL.md): tests, mocks and behavior verification.
-- `README.md`: source of truth for setup, API protocol, cache workflow, puzzle schema and deployment.
+- This guide and the project skills contain agent-facing instructions and technical contracts. Record guidance agents need here or in the relevant skill.
+- Keep README, AGENTS and project skills in English. Preserve required legal notices and keep user-facing puzzle content separate from developer documentation.
 
 ## Completion
 

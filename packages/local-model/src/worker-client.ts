@@ -5,11 +5,6 @@ import type {
 import type { LocalModelId } from '@turtle-soup/core/types';
 import { Schema } from 'effect';
 import type { LayaProgress } from './laya';
-import {
-  recordWorkerStage,
-  registerWorker,
-  releaseWorker,
-} from './runtime-diagnostic';
 import { WorkerCommand, WorkerResponse } from './worker-protocol';
 
 type Pending = {
@@ -53,7 +48,6 @@ export function createLayaWorker() {
 
 class LayaWorker {
   private readonly pending = new Map<number, Pending>();
-  private readonly diagnosticId = registerWorker();
   private nextId = 0;
   private closed = false;
 
@@ -71,7 +65,6 @@ class LayaWorker {
     this.worker.removeEventListener('error', this.failed);
     this.worker.removeEventListener('messageerror', this.failed);
     this.worker.terminate();
-    releaseWorker(this.diagnosticId);
     for (const entry of this.pending.values()) {
       entry.cleanup();
       entry.reject(error);
@@ -96,12 +89,6 @@ class LayaWorker {
       const entry = this.pending.get(response.id);
       if (!entry) return;
 
-      if (response.type === 'stage') {
-        recordWorkerStage(this.diagnosticId, response.stage);
-
-        return;
-      }
-
       if (response.type === 'progress') {
         if (entry.command.type === 'init')
           entry.onProgress?.(response.progress);
@@ -110,7 +97,6 @@ class LayaWorker {
       }
 
       if (response.type === 'error') {
-        recordWorkerStage(this.diagnosticId, `${entry.command.type}-failed`);
         this.settle(response.id, new Error(response.message));
         return;
       }
@@ -189,7 +175,6 @@ class LayaWorker {
     cacheOnly = true,
     modelId: LocalModelId = 'onnx-community/laya-multilingual-ONNX'
   ): Promise<void> {
-    recordWorkerStage(this.diagnosticId, 'load-requested', backend);
     await this.send(
       { type: 'init', id: ++this.nextId, backend, cacheOnly, modelId },
       signal,

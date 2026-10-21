@@ -27,11 +27,9 @@ async function execute(command: Operation) {
     if (command.type === 'init') {
       if (model) throw new Error('Laya worker is already initialized');
 
-      post({ type: 'stage', id: command.id, stage: 'load-started' });
       model = await loadModel(command.backend, command.cacheOnly, (progress) =>
         post({ type: 'progress', id: command.id, progress })
       );
-      post({ type: 'stage', id: command.id, stage: 'load-completed' });
       post({ type: 'success', id: command.id, value: undefined });
 
       return;
@@ -39,9 +37,7 @@ async function execute(command: Operation) {
 
     if (!model) throw new Error('Laya worker is not initialized');
 
-    post({ type: 'stage', id: command.id, stage: 'inference-started' });
     const value = await model.request(command.payload);
-    post({ type: 'stage', id: command.id, stage: 'inference-completed' });
     post({ type: 'success', id: command.id, value });
   } catch (cause) {
     post({

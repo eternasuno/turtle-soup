@@ -16,7 +16,7 @@ description: Follow static SPA and core-package boundaries, SolidJS 1 / atom-sol
 ## Providers and settings
 
 - Gameplay uses official `effect/ai` Decision/DecisionModel: API DecisionModelLayer/Live or local LayaDecisionModelLayer. Compose official TypeSafeClient/TypeSafeDecisionModel Layers; do not recreate their protocol/services.
-- API uses the complete TypeSafe protocol: JSON-object state, top-level model and choice confidence/probabilities. Preserve configurable apiModel and the full endpoint via request URL transformation. Keep local one-hot conversion separate; it is not measured confidence and must not change all-points label scoring.
+- API uses the complete TypeSafe System One protocol (not Chat Completions): JSON-object state, top-level model and choice confidence/probabilities. Preserve configurable apiModel and the full endpoint via request URL transformation. Keep local one-hot conversion separate; it is not measured confidence and must not change all-points label scoring.
 - Validate configuration at Layer construction and untrusted responses at the boundary. Retain request-dependent ID/choice checks and finite confidence in [0, 1]; do not repeat guarantees already enforced upstream.
 - API policy: HTTP(S) endpoints without userinfo, omitted credentials, rejected redirects, 30-second timeout and scoped cleanup covering body decoding. Disable HttpClient.TracerPropagationEnabled for API calls to avoid cross-origin b3/traceparent headers; retain local tracing.
 - DecisionSettings is a legacy-compatible draft/storage shape with blank values and missing-field defaults. Resolve provider-discriminated DecisionConfiguration with a Redacted API key; Redacted does not encrypt storage. Validate/normalize before saving and apply only after successful storage.
@@ -35,11 +35,18 @@ description: Follow static SPA and core-package boundaries, SolidJS 1 / atom-sol
 ## Local model and cache
 
 - Support Laya fp16 on WASM/WebGPU through Workers. Read legacy settings as drafts but reject unsupported runtime models without fallback; never auto-delete old caches.
-- Inspect actual cache completeness. Inspection failure is an error/retry state, not missing. Download prepares assets; Use tests the selected backend and selects only on success; Save applies separately. Reinspect on model change. Show 使用中 only with complete cache and matching saved model/backend; changing either requires testing again.
+- Inspect actual cache completeness. Inspection failure is an error/retry state, not missing. Download prepares assets; Use tests the selected backend and selects only on success; Save applies separately. Reinspect on model change. Show the in-use indicator only with complete cache and matching saved model/backend; changing either requires testing again.
+- Downloads must stream assets into Cache Storage without creating a model, inference session or inference Worker. Keep download progress separate from runtime initialization. Do not pass a per-byte progress callback to `AutoModel.from_pretrained`: the installed Transformers.js callback path manually buffers weights and may repeatedly copy growing buffers when sizes are unknown. This avoids that path, not all runtime copies or browser buffering.
+- Mobile browsers can terminate a page during model loading or inference under process memory limits; Workers and WebGPU do not guarantee lower peaks or exemption. Asset size and free disk space are not runtime memory budgets. Avoid overlapping model instances and unnecessary full-weight copies; do not promise mobile compatibility or a universal memory ceiling. Offer API mode when local loading cannot fit.
 - Progress is per file, not an estimated overall percentage. Use a fixed-size filled action button and fixed two-line filename/bytes helper; unknown sizes, initialization and cache verification show a spinner/stage. Truncate filenames with a full title; do not add a separate bottom test button.
 - Cache-only lookup must enable `env.allowLocalModels` and gameplay must precheck completeness. Downloads disable local lookup to avoid SPA HTML fallback under `/models/...`. Serialize/review shared env changes during concurrent loading.
 - Delete only the selected model's entries, including partial files, and verify deletion. Preserve other caches/settings. Deletion does not unload an existing runtime; later loading needs another download.
 - Cancellation removes queued work and ignores active inference results; initialization cancellation, configuration replacement and disposal terminate the Worker. Closing settings cancels work and suppresses late feedback.
+
+## Puzzle authoring
+
+- Keep puzzle data in `apps/web/src/data/puzzles.json` and attribution in `puzzle-sources.json`. Each puzzle has a unique `id`, `title`, `surface`, `truth` and nonempty `judgmentPoints` array of `{ id, description }`. Each point must be explicitly supported by the truth and represent a material fact; all points must match to solve.
+- Preserve source authors, question and accepted-answer links, original licenses and adaptation notices. Puzzle adaptations use CC BY-SA 4.0 separately from MIT application code; retain attribution and ShareAlike obligations. Static assets contain the answers, so do not promise anti-cheat protection.
 
 ## Deployment and verification
 

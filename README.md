@@ -1,12 +1,12 @@
-# 海龟汤 MVP
+# Turtle Soup
 
-SolidJS **1.9.17** + **@effect/atom-solid 4.0.0**、TypeScript、Vite、Tailwind CSS 和 DaisyUI 的纯静态推理游戏。保留 pnpm / Turborepo workspace，核心状态使用 Effect，界面通过 atom-solid 订阅会话快照，Solid signals 管理设置和展示状态；没有后端、数据库、SSR、登录或路由。
+A browser-based lateral-thinking puzzle game with Chinese puzzles. Ask questions, propose a solution, or reveal the answer. Runs as a static site with either a compatible Decision API or a local model.
 
-桌面采用左侧题目、右侧对话的单屏布局，题目和聊天记录在各自面板内滚动；移动端紧凑上下排列。解密成功自动弹窗显示完整谜底，可回顾本题或直接进入下一题。
+Built with SolidJS, Effect, TypeScript and Vite in a pnpm / Turborepo workspace. No backend or account required.
 
-## 安装与运行
+## Quick start
 
-需要 Node.js 22.19+ 和 pnpm（根目录指定版本）。本仓库使用 `workspace:*` 依赖，不能直接使用 `npm install` 安装，请使用：
+Requires Node.js 22.19+ and the pnpm version declared in `package.json`. Use pnpm rather than npm for workspace dependencies.
 
 ```bash
 corepack enable
@@ -14,7 +14,7 @@ pnpm install
 pnpm dev
 ```
 
-打开 `http://localhost:3000`。
+Open `http://localhost:3000`.
 
 ```bash
 pnpm check
@@ -23,115 +23,38 @@ pnpm build
 pnpm --filter web preview
 ```
 
-部署 `apps/web/dist` 到静态托管即可，不需要服务端进程。preview 仅用于本地验证。
+## Model settings
 
-## GitHub Pages
+Choose a provider in the settings dialog, test it, then save to apply it.
 
-`.github/workflows/deploy-pages.yml` 在推送到 `main` 或手动触发时执行检查、测试和构建，并将 `apps/web/dist` 部署到 GitHub Pages。
+- **API:** enter the full POST endpoint, API key and model name (default: `jev-latest`). The endpoint must support the TypeSafe System One Decision protocol and browser CORS, not the OpenAI Chat Completions format. Requests go directly from your browser to the configured service and may incur charges.
+- **Local:** download `onnx-community/laya-multilingual-ONNX` (fp16, approximately 650 MB), then test it with WASM/CPU or WebGPU. Downloads are cached in the current browser; other browsers and site origins do not share that cache. Downloading does not initialize the model or apply settings.
 
-仓库 Settings → Pages → Build and deployment 的 Source 需选择 **GitHub Actions**。提交并推送代码后，在 Actions 中查看 `Deploy GitHub Pages` 的运行结果和部署地址。
+Local models require substantially more runtime memory than their download size. Mobile browsers may reload the page when memory is exhausted, even after a successful download. Switching backends or clearing the cache may not help; use API mode or a device with more memory if this occurs. Model judgments can be inaccurate, and a successful connection test does not guarantee answer quality.
 
-Vite 使用相对资源路径，支持仓库子路径及自定义域名。部署不需要 Decision API Key 或其他应用密钥；用户仍在浏览器中填写自己的设置。
+Settings and API keys stay in browser storage, which is not encrypted. Only configure endpoints you trust and avoid sensitive input. Game progress is kept in memory and resets on refresh. As a static app, puzzle answers are included in the downloadable assets and are not protected against inspection.
 
-## Decision 设置
+## Deployment
 
-点击「Decision 设置」，选择 API 模式时填写**完整 POST API 端点**、API Key 和 API Model（默认 `jev-latest`，对应设置字段 `apiModel`），可先点击「测试连接」验证当前未保存的配置，再点击「保存」应用。测试成功不会自动保存，URL 不会自动追加路径。
+Deploy `apps/web/dist` to any static host. Relative asset paths support repository subpaths and custom domains. Do not embed API keys in deployment configuration.
 
-API 模式使用官方 `@effect/ai-typesafe` 的完整 TypeSafe System One 协议：Bearer 认证，请求 `{ model: apiModel, state, questions }`，响应 `{ model, answers: { [id]: { type: "choice", choice, confidence, probabilities } }, usage? }`。端点必须支持此协议、所填模型名和浏览器 CORS；不支持 Chat Completions 或不兼容的请求格式。
+For GitHub Pages, select **GitHub Actions** as the Pages source. `.github/workflows/deploy-pages.yml` checks, tests, builds and deploys on pushes to `main` or manual runs.
 
-- 询问：四选一 Choice，页面只显示固定标签。
-- 解密：一个请求包含全部关键事实的独立二选一 Choice，由程序计算整体结果，不透露缺失事实。
-- API 请求和连接测试可能产生费用；编辑配置、切换 provider 或关闭弹窗会取消测试并忽略过期反馈。
-- `state` 是 JSON 对象而非再次 JSON.stringify 的字符串；choice 必须包含完整概率分布和 confidence，响应顶层必须包含 model，不支持简化响应回退。
-- API 请求 30 秒超时，覆盖响应体读取；失败可重试；放弃、换题或退出时取消请求并忽略过期结果。请求省略 credentials、拒绝重定向，并关闭 tracing header 传播，避免自动添加的 `b3` / `traceparent` 导致 CORS 预检失败；本地 tracing 不受影响。
+## Development
 
-选择「本地模型」后，可选择Laya fp16 模型及 WebGPU（速度优先）或 WASM/CPU（兼容性优先）；缺少模型字段的旧配置默认 Laya / WASM。已保存的非 Laya 本地配置仍可读取草稿，但保存和运行会明确拒绝；初始加载会打开设置，显示 Laya 草稿，不会静默替换实际运行配置。
+- `apps/web`: interface, browser adapters and puzzle data.
+- `packages/core`: domain rules, sessions and Decision integration.
+- `packages/local-model`: local model loading, inference and caching.
 
-| 模型 ID | WASM | WebGPU | 权重与输入限制 |
-| --- | --- | --- | --- |
-| `onnx-community/laya-multilingual-ONNX` | fp16 | fp16 | 约 650 MB，不自动下载 fp32；超长 state 拒绝而非截断 |
+See [AGENTS.md](AGENTS.md) and the project skills linked there for architecture, protocol contracts, puzzle authoring and verification requirements.
 
-模型卡片检查所选模型的实际浏览器缓存：文件不完整时显示「下载模型」，完整时显示「使用」，检查失败时显示错误及「重新检查缓存」，不会误判为未下载。下载仅准备所选模型的文件，不执行 choice 判定、不保存配置；点击「使用」仅从缓存加载并测试所选模型及后端，成功后选中；再点击「保存」应用配置。保存后重新打开，只有缓存完整且模型、后端均匹配已保存配置才显示「使用中」；更换后端需重新测试。
+## Puzzle attribution and licenses
 
-「删除缓存」只删除所选模型文件（包括不完整下载），不清除其他模型或保存的设置，删除后恢复「下载模型」。已加载到内存的模型不会因删除缓存立即卸载，但后续加载前需重新下载。游戏运行只使用所选后端所需的缓存，不自动下载。
+The puzzle collection contains Chinese adaptations of Puzzling Stack Exchange questions and accepted answers. Per-puzzle author credits, source links and original licenses are recorded in [puzzle-sources.json](apps/web/src/data/puzzle-sources.json). Adaptations include translation, condensed wording, contextual changes and added judgment criteria. Some puzzles involve death, crime or illness.
 
-缓存不在系统下载文件夹或 localStorage，而在当前网站来源的浏览器 Cache Storage。Chrome/Edge：DevTools → Application → Cache Storage → `transformers-cache`；Firefox：开发者工具 → 存储 → 缓存存储。旧 Verdict / d1 缓存不会自动删除；如需清理，仅手动删除对应模型 ID 的条目，不要清空整个缓存，以免影响现有 Laya。按上表模型 ID 查找配置、tokenizer、ONNX 及所需 external data 文件。不同浏览器、域名或端口不共享缓存。
+Adapted puzzle texts are distributed under CC BY-SA 4.0, separately from the MIT-licensed application code. Redistribution must preserve attribution and license links, identify changes and comply with ShareAlike. See [LICENSE](LICENSE).
 
-开发注意：缓存专用加载需启用 `env.allowLocalModels`；下载时禁用网站本地模型路径查找，避免静态 SPA 将 `/models/...` 回退到首页 HTML 并触发 JSON 解析错误。删除缓存后应能重新下载，缓存缺失的游戏加载应明确报错而非请求首页。
-
-本地模型加载、推理、连接测试和下载均在 Worker 中运行。取消会移除排队请求并忽略已开始推理的结果，不保证立即中止底层计算；初始化取消、配置替换或 dispose 会终止对应 Worker，关闭设置也会取消工作并忽略过期反馈。
-
-ONNX Runtime 固定 stable `1.30.0`。历史上用户已验证旧 Laya 实现的 Chrome/M1 WebGPU 和 Firefox/M1 WASM fp16 可运行；Firefox WebGPU 出现过 Clip shader 错误。这不是当前 Worker 实现的真实验证：此次验证均使用 mocks，未加载真实模型、未进行浏览器验证；Safari 和完整三浏览器回归仍未验证。WASM 延迟较高，需要足够内存。
-
-更新依赖后重启开发服务（必要时运行 `pnpm --filter web dev --force`），强制刷新，验证 Laya 的下载、所选后端测试、保存、中文询问和解密。浏览器间不共享模型缓存；无需主动删除已有权重。
-
-模型加载和判定可能失败；后端不兼容时请使用 API。连接测试只证明模型能执行样例，不保证海龟汤判定准确；历史 Laya 模型卡公开基准准确率约 35%。
-
-**API Key 仅保存在当前浏览器，并直接用于请求用户配置的 Decision API。**
-
-设置保存在 `localStorage` 的 `turtle-soup-decision-settings` 中，读取时兼容旧的 `turtle-soup-jev-settings`；旧配置默认使用 API。只填写你信任的端点；API Key 并非加密存储，共享设备可通过 DevTools 删除该存储项。游戏进度和对话仅在内存中，刷新重新开始。
-
-## 结构与题库
-
-```text
-apps/web/src/
-  components/       游戏界面与设置弹窗
-  data/puzzles.json 本地题库
-  lib/              runtime / atom-solid 适配、配置测试与 localStorage
-packages/core/src/
-  types.ts          领域 Schema、PuzzleView、配置判别 union
-  game.ts           Effect 随机抽题、询问与解密用例
-  session.ts        会话状态、请求生命周期与游戏命令
-  settings.ts       设置读写、配置解析与 SettingsStorage Service
-  model-management.ts save/test/prepare 用例与资源/测试能力接口
-  solution.ts       关键事实评分规则
-  decision.ts       official Effect Decision / DecisionModel 判定
-  decision-provider.ts 官方 TypeSafe Layer 组合、调用策略及本地 choice 转换
-  decision-error.ts  中立判定错误与玩家可见失败
-  decision-schema.ts 本地模型 choice 请求、响应及动态判定约束
-packages/local-model/src/
-  client.ts         LayaDecisionModelLayer 与 scoped 资源释放
-  resources.ts      LocalModelResourcesLive 浏览器缓存适配
-  laya.ts           Laya 加载、推理和定向缓存管理
-  worker-client.ts / laya.worker.ts Worker 生命周期与任务队列
-  laya-encoding.ts  choice 编码、张量构建与输出校准
-```
-
-核心包使用 Effect 4 的 Schema、Service/Layer、Random 和 official `effect/ai` 的 `Decision` / `DecisionModel`，不依赖 Solid、DOM 或 localStorage。游戏用例统一依赖 `DecisionModel.DecisionModel`：API 使用 `DecisionModelLayer` / `DecisionModelLive`，本地使用 `LayaDecisionModelLayer`。API 使用官方 `@effect/ai-typesafe` provider 和完整 TypeSafe 协议；choice 响应必须包含 confidence、probabilities，响应顶层必须包含 model。本地模型的 one-hot 分布仅用于统一契约，不是真实概率；评分仍仅依据 matched 标签，全部判定点命中才成功，不因概率改变评分。
-
-`session.ts` 通过 SubscriptionRef 发布快照，用 scoped Fibers、请求身份与终结器处理重复提交、取消及过期结果。完整 `PuzzleDefinition`（`Puzzle` 别名）只留在核心会话内部；快照只含 `PuzzleView`（id/title/surface），`result: Option<GameResult>` 仅在解密成功或放弃后提供 truth/reason，不暴露 judgmentPoints。部分解密不指出缺失事实。领域可选值使用 Option，消息按 role 区分（只有 user 有 mode）。
-
-web 每个游戏 owner 保有一个 AtomRegistry，用 atom-solid 的 RegistryContext/useAtomValue 读取会话快照；同步命令刷新 registry，避免另写游戏状态机。每份运行配置复用一个 ManagedRuntime；保存成功后取消请求、替换并释放旧 runtime，不重置会话。退出时取消请求、dispose registry、关闭会话 Scope 并释放 runtime。配置测试用独立临时 Layer，不替换游戏 runtime；本地模型由 Layer 的 acquireRelease 释放。
-
-`DecisionSettings` 是兼容旧存储的草稿 Schema，允许空白 URL/key 和缺省 provider/apiModel/modelId/backend；不是有效运行配置。`resolveDecisionConfiguration` 产生按 provider 判别的 `DecisionConfiguration`：API 为 url/model/Redacted key，本地为 modelId/backend；缺省为 API、jev-latest、Laya 和 WASM。Redacted 只保护运行值的常规展示，不加密 localStorage。`saveSettings` 校验、规范化并成功写入后才返回可应用设置；旧草稿与旧存储 key 读取兼容。
-
-管理流程保留少量用例：`saveSettings` 负责保存，`testDecisionConfiguration` 通过 DecisionConfigurationTester 测试，`prepareLocalModel` 通过 LocalModelResources 检查→必要时下载→复查。inspect/download/remove 是资源能力，不要为每个按钮机械拆出用例；浏览器实现留在 local-model/web。共用依赖版本统一维护在 pnpm-workspace.yaml 的 catalog。
-
-题库：`apps/web/src/data/puzzles.json`，当前共 50 道，已全部替换为 [Puzzling Stack Exchange](https://puzzling.stackexchange.com/) 问题与采纳答案的中文改编，ID 使用 `pse-原帖编号`。
-
-逐题引用见 [puzzle-sources.json](apps/web/src/data/puzzle-sources.json)：每题分别记录题主、答主、作者主页、题目链接、采纳答案链接及原帖的 CC BY-SA 3.0 / 4.0 许可证。示例来源包括 [Poisoned Iced Tea](https://puzzling.stackexchange.com/questions/2980/poisoned-iced-tea)、[Save our WWII planes](https://puzzling.stackexchange.com/questions/57058/save-our-wwii-planes) 和 [A shoe in the safe](https://puzzling.stackexchange.com/questions/90899/a-shoe-in-the-safe)。
-
-整理日期：2026-10-15。改编包括中文翻译、压缩叙述、调整背景及细节以修正漏洞，并添加原子判定点；不是原帖逐字译文。题库涵盖情境反转、生活观察、侦探线索及少量横向思维解法题，不全部属于长篇叙事型海龟汤。部分题目涉及死亡、犯罪或疾病。
-
-本项目的题目改编文本按 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 分发，不适用代码的 MIT 许可证。再分发时须保留作者署名、来源与许可证链接、注明修改，并按相同方式共享条款发布改编。完整说明见 [LICENSE](LICENSE)。
-
-```ts
-interface Puzzle {
-  id: string;
-  title: string;
-  surface: string;
-  truth: string;
-  judgmentPoints: { id: string; description: string }[];
-}
-```
-
-添加新题：向数组添加对象，使用唯一 `id`，填写标题、谜面、完整真相及至少一个 `judgmentPoints` 原子判定点。每点 id/description 均须非空，点 ID 在同一道题内唯一（description 不要求唯一）；描述必须由 `truth` 明确支持，避免仅是枝节。全部命中才算成功。题库测试检查结构和题目 ID，Schema 检查判定点 ID 唯一性。
-
-## 静态应用限制
-
-谜底和关键事实实际存在于前端 bundle 中，DevTools 用户可以查看，这是 MVP 的已知限制，不提供防作弊保证。谜底和输入也会发送给配置的 Decision 服务；模型判定可能出错，不应输入敏感信息。
-
-本地 choice 编码与校准实现参考 [open-jev laya-family](https://github.com/shreyaskarnik/open-jev/tree/baefb88e7285cde8b7d3f2aa91b1d6f297c5a282)，不依赖 open-jev 包。Laya 模型采用 Apache-2.0。参考代码许可证如下：
+Local choice encoding and calibration reference [open-jev laya-family](https://github.com/shreyaskarnik/open-jev/tree/baefb88e7285cde8b7d3f2aa91b1d6f297c5a282); the project does not depend on the open-jev package. The Laya model is licensed under Apache-2.0. The referenced code carries the following notice:
 
 ```text
 MIT License
