@@ -9,19 +9,76 @@ function progressBody(
 ) {
   const size = Number(response.headers.get('content-length'));
   const total = Number.isFinite(size) && size > 0 ? size : 0;
+  const state = { loaded: 0, ended: false };
   let loaded = 0;
   onProgress?.({ file, loaded, total });
 
-  return response.body!.pipeThrough(
+  const body = response.body!.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
         loaded += chunk.byteLength;
+        state.loaded = loaded;
         onProgress?.({ file, loaded, total });
         controller.enqueue(chunk);
+      },
+      flush() {
+        state.ended = true;
       },
     }),
     { signal }
   );
+
+  return { body, state };
+}
+
+function describeError(value: unknown): string {
+  if (!(value instanceof Error)) return String(value);
+
+  const nested =
+    value.cause === undefined ? '' : `；cause=${String(value.cause)}`;
+
+  return `${value.name}: ${value.message}${nested}`;
+}
+
+async function storageDetails(): Promise<string> {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.storage?.estimate) {
+      return '不可用';
+    }
+
+    const { usage, quota } = await navigator.storage.estimate();
+
+    return `usage=${usage ?? '未知'} B，quota=${quota ?? '未知'} B`;
+  } catch (cause) {
+    return `读取失败（${describeError(cause)}）`;
+  }
+}
+
+async function cacheFailureDetails(
+  cause: unknown,
+  response: Response,
+  state: { loaded: number; ended: boolean },
+  started: number
+): Promise<string> {
+  const elapsed = Math.round(performance.now() - started);
+  const standalone =
+    typeof matchMedia === 'function'
+      ? matchMedia('(display-mode: standalone)').matches
+      : '未知';
+  const origin = response.url ? new URL(response.url).origin : '未知';
+  const secure =
+    typeof isSecureContext === 'undefined' ? '未知' : isSecureContext;
+  const storage = await storageDetails();
+
+  return [
+    describeError(cause),
+    `已接收=${state.loaded} B / ${response.headers.get('content-length') ?? '未知'} B`,
+    `响应流正常结束=${state.ended}`,
+    `耗时=${elapsed} ms`,
+    `HTTP=${response.status}，type=${response.type}，来源=${origin}，重定向=${response.redirected}`,
+    `网站存储：${storage}`,
+    `安全上下文=${secure}，主屏幕模式=${standalone}，无痕模式=未知（无法可靠检测）`,
+  ].join('；');
 }
 
 export async function downloadCachedFile(
@@ -39,15 +96,16 @@ export async function downloadCachedFile(
     throw new Error(`模型文件下载失败：${file}（HTTP ${response.status}）`);
   }
 
-  const body = progressBody(response, file, signal, onProgress);
+  const started = performance.now();
+  const { body, state } = progressBody(response, file, signal, onProgress);
   try {
     await cache.put(url, new Response(body, { headers: response.headers }));
   } catch (cause) {
     signal.throwIfAborted();
-    const detail = cause instanceof Error ? cause.message : String(cause);
-    throw new Error(
-      `模型文件缓存写入失败：${file}。请检查设备可用存储空间后重试。${detail}`
-    );
+    const detail = await cacheFailureDetails(cause, response, state, started);
+    throw new Error(`模型文件缓存写入失败：${file}。诊断：${detail}`, {
+      cause,
+    });
   }
 
   signal.throwIfAborted();
