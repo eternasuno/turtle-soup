@@ -263,7 +263,6 @@ async function acquireAssets(
       dtype: 'fp16',
       device,
       session_options: { executionProviders: [device] },
-      progress_callback,
       local_files_only: localFilesOnly,
     }
   );

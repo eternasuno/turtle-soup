@@ -33,6 +33,16 @@ export const WorkerProgress = ModelDownloadProgress;
 
 export const WorkerResponse = Schema.Union([
   Schema.Struct({
+    type: Schema.Literal('stage'),
+    id: Id,
+    stage: Schema.Literals([
+      'load-started',
+      'load-completed',
+      'inference-started',
+      'inference-completed',
+    ]),
+  }),
+  Schema.Struct({
     type: Schema.Literal('success'),
     id: Id,
     value: Schema.Union([WorkerAnswers, Schema.Undefined]),

@@ -80,6 +80,9 @@ it('loads WASM fp16 without WebGPU and never selects fp32', async () => {
   const model = await loadLaya();
 
   expect(mocks.env.allowLocalModels).toBe(true);
+  expect(mocks.model.mock.calls[0]?.[1]).not.toHaveProperty(
+    'progress_callback'
+  );
   expect(mocks.model).toHaveBeenCalledExactlyOnceWith(
     'onnx-community/laya-multilingual-ONNX',
     expect.objectContaining({
@@ -291,7 +294,8 @@ it('preserves prototype-named answer IDs and choice probabilities', async () => 
 it('reports file starts, unknown sizes and initialization without invalid bytes', async () => {
   setup();
   const progress = vi.fn();
-  mocks.model.mockImplementation(async (_id, options) => {
+  const config = await mocks.config();
+  mocks.config.mockImplementation(async (_id, options) => {
     options.progress_callback({ status: 'initiate', file: 'model.onnx' });
     options.progress_callback({
       status: 'progress',
@@ -305,7 +309,8 @@ it('reports file starts, unknown sizes and initialization without invalid bytes'
       total: 20,
     });
     options.progress_callback({ status: 'done', file: 'model.onnx' });
-    return { dispose: vi.fn() };
+
+    return config;
   });
   const client = await loadLaya(progress);
   expect(progress.mock.calls.map(([event]) => event)).toEqual([
